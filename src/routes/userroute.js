@@ -1,5 +1,5 @@
 import express from 'express';
-import { authorizeAdmin, verifyToken } from '../middleware/authmiddleware.js';
+import { authorizeAdmin, verifyToken } from '../middleware/authMiddleware.js';
 import { getVerifiedDoctors, getVerifiedDoctorsDetails, handleActivateUser, handleDeactivateUser } from '../controllers/user.controller.js';
 import { getAllDoctorsWithPracticeDetails, getAllHospitals, getAllPatients, getClinicById, getDoctorRatingsAndReviews  } from '../controllers/hospitals.controller.js';
 
