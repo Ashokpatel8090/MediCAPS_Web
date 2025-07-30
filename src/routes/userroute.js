@@ -1,0 +1,23 @@
+import express from 'express';
+import { authorizeAdmin, verifyToken } from '../middleware/authmiddleware.js';
+import { getVerifiedDoctors, getVerifiedDoctorsDetails, handleActivateUser, handleDeactivateUser } from '../controllers/user.controller.js';
+import { getAllDoctorsWithPracticeDetails, getAllHospitals, getAllPatients, getClinicById, getDoctorRatingsAndReviews  } from '../controllers/hospitals.controller.js';
+
+const router = express.Router();
+
+router.patch('/admin/users/:userId/deactivate', verifyToken, authorizeAdmin, handleDeactivateUser);
+router.patch('/admin/users/:userId/activate', verifyToken, authorizeAdmin, handleActivateUser);
+router.get('/admin/doctors/verified', getVerifiedDoctors);
+router.get('/admin/doctors/verified-details', getVerifiedDoctorsDetails);
+router.get('/admin/doctors/hospitals', getAllHospitals);
+router.get('/admin/clinics/:id', getClinicById);
+router.get('/admin/doctors/workplaces', getAllDoctorsWithPracticeDetails);
+router.get('/admin/patients', getAllPatients);
+router.get('/admin/reviews', getDoctorRatingsAndReviews);
+
+
+
+
+export default router;
+
+
