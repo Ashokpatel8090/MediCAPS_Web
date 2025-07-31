@@ -439,7 +439,6 @@ export const getVerifiedDoctors = async (req, res) => {
 
 export const getVerifiedDoctorsDetails = async (req, res) => {
   try {
-    // ✅ Fetch core verified doctor data
     const [rows] = await db.query(`
       SELECT 
         d.id AS doctor_id,
@@ -468,54 +467,46 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
       WHERE d.is_verified = '1' AND d.is_verified IS NOT NULL
     `);
 
-    // ✅ Loop over each doctor
     for (const doctor of rows) {
       const doctorId = doctor.doctor_id;
 
-      // ✅ Qualifications
+      // Qualifications
       const [qualifications] = await db.query(
-        `
-        SELECT DISTINCT 
+        `SELECT DISTINCT 
           CONCAT(degree_name, ' from ', institution, ' (', completion_year, ')') AS qualification
-        FROM doctor_qualifications
-        WHERE doctor_id = ?
-        `,
+         FROM doctor_qualifications
+         WHERE doctor_id = ?`,
         [doctorId]
       );
       doctor.qualifications = qualifications.map(q => q.qualification).join('; ');
 
-      // ✅ Schedules
+      // Schedules
       const [schedules] = await db.query(
-        `
-        SELECT 
+        `SELECT 
           day_of_week, start_time, end_time, consultation_mode, is_active
-        FROM doctor_schedules
-        WHERE doctor_practice_id IN (
-          SELECT id FROM doctor_practices WHERE doctor_id = ?
-        )
-        `,
+         FROM doctor_schedules
+         WHERE doctor_practice_id IN (
+           SELECT id FROM doctor_practices WHERE doctor_id = ?
+         )`,
         [doctorId]
       );
       doctor.schedules = schedules;
 
-      // ✅ Availability Slots
+      // Availability Slots
       const [slots] = await db.query(
-        `
-        SELECT 
+        `SELECT 
           slot_start_time, slot_end_time, consultation_mode, slot_date, created_from_schedule_id
-        FROM availability_slots
-        WHERE doctor_practice_id IN (
-          SELECT id FROM doctor_practices WHERE doctor_id = ?
-        )
-        `,
+         FROM availability_slots
+         WHERE doctor_practice_id IN (
+           SELECT id FROM doctor_practices WHERE doctor_id = ?
+         )`,
         [doctorId]
       );
       doctor.availability_slots = slots;
 
-      // ✅ Appointments with patient names
+      // Appointments with patient name & time
       const [appointments] = await db.query(
-        `
-        SELECT 
+        `SELECT 
           a.id,
           a.slot_id,
           a.patient_profile_id,
@@ -523,28 +514,29 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
           a.consultation_type,
           a.patient_symptoms,
           a.channel_name,
-          u.full_name AS patient_name
+          u.full_name AS patient_name,
+          s.slot_start_time,
+          s.slot_end_time,
+          s.slot_date
         FROM appointments a
         LEFT JOIN patient_profiles pp ON a.patient_profile_id = pp.id
         LEFT JOIN users u ON pp.user_id = u.id
-        WHERE a.doctor_id = ?
-        `,
+        LEFT JOIN availability_slots s ON a.slot_id = s.id
+        WHERE a.doctor_id = ?`,
         [doctorId]
       );
       doctor.appointments = appointments;
 
-      // ✅ Documents
+      // Documents
       const [documents] = await db.query(
-        `
-        SELECT d1.*
-        FROM doctor_verification_docs d1
-        INNER JOIN (
-          SELECT MIN(id) AS min_id
-          FROM doctor_verification_docs
-          WHERE doctor_id = ?
-          GROUP BY public_id
-        ) d2 ON d1.id = d2.min_id
-        `,
+        `SELECT d1.*
+         FROM doctor_verification_docs d1
+         INNER JOIN (
+           SELECT MIN(id) AS min_id
+           FROM doctor_verification_docs
+           WHERE doctor_id = ?
+           GROUP BY public_id
+         ) d2 ON d1.id = d2.min_id`,
         [doctorId]
       );
       doctor.documents = documents;
@@ -556,5 +548,6 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
 
 
