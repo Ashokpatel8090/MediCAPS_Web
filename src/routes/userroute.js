@@ -15,9 +15,4 @@ router.get('/admin/doctors/workplaces', getAllDoctorsWithPracticeDetails);
 router.get('/admin/patients', getAllPatients);
 router.get('/admin/reviews', getDoctorRatingsAndReviews);
 
-
-
-
 export default router;
-
-

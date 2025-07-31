@@ -297,6 +297,7 @@ export const updateBlog = (req, res) => {
 };
 
 // @desc    Delete blog
+
 export const deleteBlog = (req, res) => {
   const { id } = req.params;
   db.query('DELETE FROM blogs WHERE id = ?', [id], (err) => {

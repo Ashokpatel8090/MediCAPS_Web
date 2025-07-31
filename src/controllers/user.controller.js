@@ -439,7 +439,7 @@ export const getVerifiedDoctors = async (req, res) => {
 
 export const getVerifiedDoctorsDetails = async (req, res) => {
   try {
-    // Fetch core verified doctor data
+    // ✅ Fetch core verified doctor data
     const [rows] = await db.query(`
       SELECT 
         d.id AS doctor_id,
@@ -468,11 +468,11 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
       WHERE d.is_verified = '1' AND d.is_verified IS NOT NULL
     `);
 
-    // Loop through each doctor to enrich with documents, qualifications, schedules, etc.
+    // ✅ Loop over each doctor
     for (const doctor of rows) {
       const doctorId = doctor.doctor_id;
 
-      // ✅ Unique Qualifications
+      // ✅ Qualifications
       const [qualifications] = await db.query(
         `
         SELECT DISTINCT 
@@ -484,9 +484,7 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
       );
       doctor.qualifications = qualifications.map(q => q.qualification).join('; ');
 
-      
-
-      // ✅ Doctor Schedules
+      // ✅ Schedules
       const [schedules] = await db.query(
         `
         SELECT 
@@ -514,20 +512,28 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
       );
       doctor.availability_slots = slots;
 
-      // ✅ Appointments (With patient symptoms)
+      // ✅ Appointments with patient names
       const [appointments] = await db.query(
         `
         SELECT 
-          a.id, a.slot_id, a.patient_profile_id, a.status, a.consultation_type,
-          a.patient_symptoms, a.channel_name
+          a.id,
+          a.slot_id,
+          a.patient_profile_id,
+          a.status,
+          a.consultation_type,
+          a.patient_symptoms,
+          a.channel_name,
+          u.full_name AS patient_name
         FROM appointments a
+        LEFT JOIN patient_profiles pp ON a.patient_profile_id = pp.id
+        LEFT JOIN users u ON pp.user_id = u.id
         WHERE a.doctor_id = ?
         `,
         [doctorId]
       );
       doctor.appointments = appointments;
 
-      // ✅ Unique Documents (Safe from ONLY_FULL_GROUP_BY)
+      // ✅ Documents
       const [documents] = await db.query(
         `
         SELECT d1.*
@@ -550,4 +556,5 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
 
