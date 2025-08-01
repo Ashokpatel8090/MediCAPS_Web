@@ -1,5 +1,5 @@
 import db from '../config/db.js'
-
+import cloudinary from '../utils/cloudinary.config.js'
 
 /**
  * @swagger
@@ -204,73 +204,91 @@ export const getBlogBySlug = (req, res) => {
 
 
 
+
+
+// Wrap the full handler with a try-catch for clarity
 export const createBlog = async (req, res) => {
-  let {
-    title,
-    slug,
-    content,
-    excerpt,
-    published_at,
-    featured_image_url,
-    featured_image_public_id,
-    meta_title,
-    meta_description
-  } = req.body;
-
-  // ✅ Format published_at to MySQL DATETIME
-  if (published_at) {
-    try {
-      const dateObj = new Date(published_at);
-      published_at = dateObj.toISOString().slice(0, 19).replace('T', ' ');
-    } catch (err) {
-      return res.status(400).json({ error: 'Invalid published_at format' });
-    }
-  }
-
-  const query = `
-    INSERT INTO blogs 
-    (
-      title, slug, content, excerpt, published_at, 
-      featured_image_url, featured_image_public_id, 
-      meta_title, meta_description
-    ) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
-
-  const values = [
-    title,
-    slug,
-    content,
-    excerpt,
-    published_at,
-    featured_image_url,
-    featured_image_public_id,
-    meta_title,
-    meta_description
-  ];
-
   try {
+    let {
+      title,
+      slug,
+      content,
+      excerpt,
+      published_at,
+      meta_title,
+      meta_description
+    } = req.body;
+
+    if (published_at) {
+      try {
+        const dateObj = new Date(published_at);
+        published_at = dateObj.toISOString().slice(0, 19).replace('T', ' ');
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid published_at format' });
+      }
+    }
+
+    let featured_image_url = '';
+    let featured_image_public_id = '';
+
+    if (req.file) {
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'medicaps/blogs',
+          resource_type: 'image',
+        });
+
+        featured_image_url = result.secure_url;
+        featured_image_public_id = result.public_id;
+      } catch (err) {
+        return res.status(500).json({ error: 'Image upload failed', details: err.message });
+      }
+    }
+
+    const query = `
+      INSERT INTO blogs 
+      (title, slug, content, excerpt, published_at, featured_image_url, featured_image_public_id, meta_title, meta_description)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const values = [
+      title,
+      slug,
+      content, // HTML content from TipTap
+      excerpt,
+      published_at,
+      featured_image_url,
+      featured_image_public_id,
+      meta_title,
+      meta_description
+    ];
+
     const [result] = await db.query(query, values);
+
     return res.status(201).json({
       message: 'Blog created successfully',
-      id: result.insertId
+      id: result.insertId,
+      image: featured_image_url,
     });
+
   } catch (err) {
-    console.error('MySQL Error:', err);
-    return res.status(500).json({ error: err.message });
+    console.error("Unhandled Error:", err);
+    return res.status(500).json({ error: "Something went wrong", details: err.message });
   }
 };
 
 
 
 
-// @desc    Update blog
+
+
+
 export const updateBlog = (req, res) => {
   const { id } = req.params;
   const {
     title,
     slug,
-    content,
+    content, // JSON string like '[{ type: "heading", ... }, ...]'
     excerpt,
     published_at,
     featured_image_url,
@@ -288,7 +306,18 @@ export const updateBlog = (req, res) => {
 
   db.query(
     query,
-    [title, slug, content, excerpt, published_at, featured_image_url, featured_image_public_id, meta_title, meta_description, id],
+    [
+      title,
+      slug,
+      content, // store as JSON string
+      excerpt,
+      published_at,
+      featured_image_url,
+      featured_image_public_id,
+      meta_title,
+      meta_description,
+      id
+    ],
     (err) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message: 'Blog updated' });
@@ -296,8 +325,8 @@ export const updateBlog = (req, res) => {
   );
 };
 
-// @desc    Delete blog
 
+// @desc    Delete blog
 export const deleteBlog = (req, res) => {
   const { id } = req.params;
   db.query('DELETE FROM blogs WHERE id = ?', [id], (err) => {

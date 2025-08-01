@@ -1,12 +1,13 @@
 import express from 'express'
-import { createBlog, deleteBlog, getAllBlogs, getBlogBySlug, updateBlog } from '../controllers/blog.controller.js';
+import { createBlog, deleteBlog, getAllBlogs, getBlogBySlug, updateBlog,  } from '../controllers/blog.controller.js';
 const router = express.Router();
+import upload from '../middleware/upload.js';
 
 
 // Define blog routes
 router.get('/api/blogs', getAllBlogs);
 router.get('/api/blogs/:slug', getBlogBySlug);
-router.post('/api/blogs', createBlog);
+router.post('/api/blogs', upload.single('file'), createBlog);
 router.put('/api/blogs/:id', updateBlog);
 router.delete('/api/blogs/:id', deleteBlog);
 
