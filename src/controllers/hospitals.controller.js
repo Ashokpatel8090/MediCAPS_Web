@@ -561,6 +561,7 @@ export const getAllPatients = async (req, res) => {
         p.gender,
         p.blood_group,
         p.profile_image_url,
+        p.created_at,
 
         -- Documents
         (
@@ -606,8 +607,6 @@ export const getAllPatients = async (req, res) => {
       JOIN users u ON u.id = p.user_id
     `;
 
-    // Specialization filter requires joining doctors and specializations
-
     const whereClauses = [];
     const params = [];
 
@@ -626,12 +625,12 @@ export const getAllPatients = async (req, res) => {
       params.push(gender);
     }
 
-
     if (whereClauses.length > 0) {
       baseQuery += ' WHERE ' + whereClauses.join(' AND ');
     }
 
-    baseQuery += ' ORDER BY p.id DESC';
+    // 🔁 Sort by latest created patient
+    baseQuery += ' ORDER BY p.created_at DESC';
 
     const [rows] = await db.query(baseQuery, params);
 
@@ -641,6 +640,7 @@ export const getAllPatients = async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
 
 
 

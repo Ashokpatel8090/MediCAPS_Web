@@ -8,7 +8,7 @@ import upload from '../middleware/upload.js';
 router.get('/api/blogs', getAllBlogs);
 router.get('/api/blogs/:slug', getBlogBySlug);
 router.post('/api/blogs', upload.single('file'), createBlog);
-router.put('/api/blogs/:id', updateBlog);
+router.put('/api/blogs/:id', upload.single('file'), updateBlog);
 router.delete('/api/blogs/:id', deleteBlog);
 
 export default router;
