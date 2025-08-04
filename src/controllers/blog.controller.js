@@ -225,6 +225,7 @@ const streamUpload = (buffer) => {
 
 export const createBlog = async (req, res) => {
   try {
+    // Destructure fields from form body
     let {
       title,
       slug,
@@ -235,21 +236,32 @@ export const createBlog = async (req, res) => {
       meta_description,
     } = req.body;
 
+    // Basic field validation
+    if (!title || !slug || !content) {
+      return res.status(400).json({
+        error: "Title, slug, and content are required fields.",
+      });
+    }
+
     let featured_image_url = "";
     let featured_image_public_id = "";
 
-    // Handle optional image upload
+    // Optional image upload
     if (req.file) {
       try {
-        const result = await streamUpload(req.file.buffer); // cloudinary uploader
+        const result = await streamUpload(req.file.buffer); // Upload to Cloudinary
         featured_image_url = result.secure_url;
         featured_image_public_id = result.public_id;
       } catch (err) {
-        return res.status(500).json({ error: "Image upload failed", details: err.message });
+        console.error("Cloudinary upload failed:", err);
+        return res.status(500).json({
+          error: "Image upload failed",
+          details: err.message,
+        });
       }
     }
 
-    // Construct the query conditionally
+    // Conditionally include published_at
     const hasPublishedAt = published_at && published_at.trim() !== "";
     const query = `
       INSERT INTO blogs 
@@ -263,25 +275,27 @@ export const createBlog = async (req, res) => {
       content,
       excerpt,
       ...(hasPublishedAt
-        ? [new Date(published_at).toISOString().slice(0, 19).replace('T', ' ')]
+        ? [new Date(published_at).toISOString().slice(0, 19).replace("T", " ")]
         : []),
       featured_image_url,
       featured_image_public_id,
-      meta_title,
-      meta_description,
+      meta_title || "",
+      meta_description || "",
     ];
 
     const [result] = await db.query(query, values);
 
     return res.status(201).json({
-      message: "Blog created successfully",
-      id: result.insertId,
+      message: "✅ Blog created successfully",
+      blog_id: result.insertId,
       featured_image_url,
     });
-
   } catch (err) {
-    console.error("Unhandled Error:", err);
-    return res.status(500).json({ error: "Something went wrong", details: err.message });
+    console.error("Unhandled Server Error:", err);
+    return res.status(500).json({
+      error: "Something went wrong on the server",
+      details: err.message,
+    });
   }
 };
 

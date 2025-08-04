@@ -601,7 +601,21 @@ export const getAllPatients = async (req, res) => {
           )
           FROM patient_allergies a
           WHERE a.patient_profile_id = p.id
-        ) AS allergies
+        ) AS allergies,
+
+        -- Vitals
+        (
+          SELECT JSON_ARRAYAGG(
+            JSON_OBJECT(
+              'vital_type', v.vital_type,
+              'values', v.values,
+              'unit', v.unit,
+              'recorded_at', v.recorded_at
+            )
+          )
+          FROM patient_vitals v
+          WHERE v.patient_profile_id = p.id
+        ) AS vitals
 
       FROM patient_profiles p
       JOIN users u ON u.id = p.user_id
@@ -629,7 +643,6 @@ export const getAllPatients = async (req, res) => {
       baseQuery += ' WHERE ' + whereClauses.join(' AND ');
     }
 
-    // 🔁 Sort by latest created patient
     baseQuery += ' ORDER BY p.created_at DESC';
 
     const [rows] = await db.query(baseQuery, params);
@@ -640,6 +653,7 @@ export const getAllPatients = async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
 
 
 
