@@ -2,6 +2,7 @@ import db from '../config/db.js'
 import cloudinary from '../utils/cloudinary.config.js'
 import streamifier from 'streamifier';
 
+
 /**
  * @swagger
  * /blogs:
@@ -14,7 +15,6 @@ import streamifier from 'streamifier';
  *       500:
  *         description: Server error
  */
-
 
 export const getAllBlogs = async (req, res) => {
   try {
@@ -39,18 +39,19 @@ export const getAllBlogs = async (req, res) => {
  * @swagger
  * /blogs/{slug}:
  *   get:
- *     summary: Get a blog by its slug
- *     tags: [Blogs]
+ *     summary: Get a blog post by its slug
+ *     tags:
+ *       - Blogs
  *     parameters:
  *       - in: path
  *         name: slug
  *         required: true
  *         schema:
  *           type: string
- *         description: Slug of the blog (e.g., understanding-nutrition-what-your-body-really-needs)
+ *         description: URL-friendly slug of the blog post
  *     responses:
  *       200:
- *         description: Blog found
+ *         description: Blog post retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -58,33 +59,35 @@ export const getAllBlogs = async (req, res) => {
  *               properties:
  *                 id:
  *                   type: integer
+ *                   example: 1
  *                 title:
  *                   type: string
+ *                   example: "My Awesome Blog Post"
  *                 slug:
  *                   type: string
+ *                   example: "my-awesome-blog-post"
  *                 content:
  *                   type: string
+ *                   example: "<p>This is the blog content...</p>"
  *                 excerpt:
  *                   type: string
+ *                   example: "Short summary or excerpt"
  *                 published_at:
  *                   type: string
  *                   format: date-time
+ *                   example: "2025-08-11 12:00:00"
  *                 featured_image_url:
  *                   type: string
+ *                   example: "https://example.com/image.jpg"
  *                 featured_image_public_id:
  *                   type: string
+ *                   example: "abc123"
  *                 meta_title:
  *                   type: string
+ *                   example: "SEO Title"
  *                 meta_description:
  *                   type: string
- *                 views_count:
- *                   type: integer
- *                 created_at:
- *                   type: string
- *                   format: date-time
- *                 updated_at:
- *                   type: string
- *                   format: date-time
+ *                   example: "SEO description for the blog post"
  *       404:
  *         description: Blog not found
  *         content:
@@ -94,7 +97,7 @@ export const getAllBlogs = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Blog not found
+ *                   example: "Blog not found"
  *       500:
  *         description: Server error
  *         content:
@@ -104,9 +107,8 @@ export const getAllBlogs = async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
- *                   example: Internal server error
+ *                   example: "Internal server error"
  */
-
 
 export const getBlogBySlug = (req, res) => {
   const { slug } = req.params;
@@ -116,8 +118,6 @@ export const getBlogBySlug = (req, res) => {
     res.json(results[0]);
   });
 };
-
-// @desc    Create new blog
 
 
 
@@ -201,9 +201,6 @@ export const getBlogBySlug = (req, res) => {
  *                   type: string
  *                   example: Duplicate entry 'slug' for key 'blogs.slug'
  */
-
-
-
 const streamUpload = (buffer) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -223,10 +220,99 @@ const streamUpload = (buffer) => {
 // @desc Create Blog
 // controllers/blog.controller.js
 
+
+/**
+ * @swagger
+ * blogs/create:
+ *   post:
+ *     summary: Create a new blog post
+ *     tags:
+ *       - Blogs
+ *     security:
+ *       - bearerAuth: []
+ *     consumes:
+ *       - multipart/form-data
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - slug
+ *               - content
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Title of the blog post
+ *               slug:
+ *                 type: string
+ *                 description: URL-friendly slug for the blog post
+ *               content:
+ *                 type: string
+ *                 description: Main content of the blog post
+ *               excerpt:
+ *                 type: string
+ *                 description: Short excerpt or summary
+ *               published_at:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Optional publish date/time in ISO format
+ *               meta_title:
+ *                 type: string
+ *                 description: SEO meta title
+ *               meta_description:
+ *                 type: string
+ *                 description: SEO meta description
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Optional featured image file upload
+ *     responses:
+ *       201:
+ *         description: Blog created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "✅ Blog created successfully"
+ *                 blog_id:
+ *                   type: integer
+ *                   description: ID of the newly created blog
+ *                 featured_image_url:
+ *                   type: string
+ *                   description: URL of the uploaded featured image (if any)
+ *       400:
+ *         description: Missing required fields or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Title, slug, and content are required fields.
+ *       500:
+ *         description: Server error or image upload failure
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Something went wrong on the server
+ *                 details:
+ *                   type: string
+ *                   example: Detailed error message
+ */
 export const createBlog = async (req, res) => {
   try {
-    // Destructure fields from form body
-    let {
+    const {
       title,
       slug,
       content,
@@ -247,7 +333,7 @@ export const createBlog = async (req, res) => {
     let featured_image_public_id = "";
 
     // Optional image upload
-    if (req.file) {
+    if (req.file && req.file.buffer) {
       try {
         const result = await streamUpload(req.file.buffer); // Upload to Cloudinary
         featured_image_url = result.secure_url;
@@ -261,12 +347,11 @@ export const createBlog = async (req, res) => {
       }
     }
 
-    // Conditionally include published_at
     const hasPublishedAt = published_at && published_at.trim() !== "";
     const query = `
       INSERT INTO blogs 
-      (title, slug, content, excerpt, ${hasPublishedAt ? 'published_at, ' : ''}featured_image_url, featured_image_public_id, meta_title, meta_description)
-      VALUES (?, ?, ?, ?, ${hasPublishedAt ? '?, ' : ''}?, ?, ?, ?)
+      (title, slug, content, excerpt, ${hasPublishedAt ? "published_at, " : ""}featured_image_url, featured_image_public_id, meta_title, meta_description)
+      VALUES (?, ?, ?, ?, ${hasPublishedAt ? "?, " : ""}?, ?, ?, ?)
     `;
 
     const values = [
@@ -301,10 +386,122 @@ export const createBlog = async (req, res) => {
 
 
 
-
-
-
-
+/**
+ * @swagger
+ * /blogs/update/{id}:
+ *   put:
+ *     summary: Update a blog by ID
+ *     tags:
+ *       - Blogs
+ *     security:
+ *       - bearerAuth: []
+ *     consumes:
+ *       - multipart/form-data
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the blog to update
+ *       - in: formData
+ *         name: title
+ *         schema:
+ *           type: string
+ *         description: New title of the blog
+ *       - in: formData
+ *         name: slug
+ *         schema:
+ *           type: string
+ *         description: New slug for the blog
+ *       - in: formData
+ *         name: content
+ *         schema:
+ *           type: string
+ *         description: Updated content of the blog
+ *       - in: formData
+ *         name: excerpt
+ *         schema:
+ *           type: string
+ *         description: Updated excerpt/summary of the blog
+ *       - in: formData
+ *         name: published_at
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: New published date/time (ISO format)
+ *       - in: formData
+ *         name: featured_image_url
+ *         schema:
+ *           type: string
+ *         description: URL of the featured image
+ *       - in: formData
+ *         name: featured_image_public_id
+ *         schema:
+ *           type: string
+ *         description: Cloud storage public ID for the featured image
+ *       - in: formData
+ *         name: meta_title
+ *         schema:
+ *           type: string
+ *         description: SEO meta title
+ *       - in: formData
+ *         name: meta_description
+ *         schema:
+ *           type: string
+ *         description: SEO meta description
+ *       - in: formData
+ *         name: file
+ *         type: file
+ *         description: Optional featured image file upload
+ *     responses:
+ *       200:
+ *         description: Blog updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Blog updated successfully
+ *       400:
+ *         description: No changes detected or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: No changes detected in blog content
+ *                 error:
+ *                   type: string
+ *                   example: Invalid published_at format
+ *       404:
+ *         description: Blog not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Blog not found
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Server error
+ *                 details:
+ *                   type: string
+ *                   example: Detailed error message
+ */
 export const updateBlog = async (req, res) => {
   const { id } = req.params;
 
@@ -388,10 +585,54 @@ export const updateBlog = async (req, res) => {
 };
 
 
-
-
-
-
+/**
+ * @swagger
+ * /blogs/delete/{id}:
+ *   delete:
+ *     summary: Delete a blog by ID
+ *     tags:
+ *       - Blogs
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the blog to delete
+ *     responses:
+ *       200:
+ *         description: Blog deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Blog deleted successfully
+ *       404:
+ *         description: Blog not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Blog not found
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Internal server error
+ */
 export const deleteBlog = async (req, res) => {
   const { id } = req.params;
 
@@ -410,3 +651,686 @@ export const deleteBlog = async (req, res) => {
 };
 
 
+
+/**
+ * @swagger
+ * /blogs/{blogId}/like:
+ *   post:
+ *     summary: Like or unlike a specific blog post (toggle)
+ *     tags:
+ *       - Blogs
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: blogId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the blog to like or unlike
+ *     responses:
+ *       200:
+ *         description: Blog liked or unliked successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Blog liked successfully
+ *                 likes_count:
+ *                   type: integer
+ *                   example: 5
+ *                 liked:
+ *                   type: boolean
+ *                   example: true
+ *       400:
+ *         description: Invalid blog ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Invalid blog ID
+ *       404:
+ *         description: Blog not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Blog not found
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Server error
+ *                 details:
+ *                   type: string
+ *                   example: Detailed error message
+ */
+export const likeBlog = async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const { blogId } = req.params;
+
+    if (!blogId || isNaN(blogId)) {
+      return res.status(400).json({ message: "Invalid blog ID" });
+    }
+
+    // Check blog existence
+    const [blogRows] = await db.query("SELECT * FROM blogs WHERE id = ?", [blogId]);
+    if (blogRows.length === 0) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    // Check if user already liked the blog
+    const [likeRows] = await db.query(
+      "SELECT * FROM blog_likes WHERE user_id = ? AND blog_id = ?",
+      [userId, blogId]
+    );
+
+    let message, liked;
+
+    if (likeRows.length > 0) {
+      // Dislike (remove like)
+      await db.query("DELETE FROM blog_likes WHERE user_id = ? AND blog_id = ?", [userId, blogId]);
+      message = "Blog unliked successfully";
+      liked = false;
+    } else {
+      // Like (add like)
+      await db.query("INSERT INTO blog_likes (user_id, blog_id) VALUES (?, ?)", [userId, blogId]);
+      message = "Blog liked successfully";
+      liked = true;
+    }
+
+    // Recalculate total likes from blog_likes table
+    const [likesCountRows] = await db.query(
+      "SELECT COUNT(*) as total_likes FROM blog_likes WHERE blog_id = ?",
+      [blogId]
+    );
+    const likes_count = likesCountRows[0]?.total_likes || 0;
+
+    // Update the blogs.likes_count column to keep it in sync
+    await db.query("UPDATE blogs SET likes_count = ? WHERE id = ?", [likes_count, blogId]);
+
+    return res.status(200).json({
+      message,
+      likes_count,
+      liked,
+    });
+  } catch (err) {
+    console.error("Error toggling like:", err);
+    return res.status(500).json({ message: "Server error", details: err.message });
+  }
+};
+
+
+
+// Fetch total likes for a blog
+/**
+ * @swagger
+ * /blogs/{blogId}/likes:
+ *   get:
+ *     summary: Get total likes and user like status for a specific blog
+ *     tags:
+ *       - Blogs
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: blogId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the blog to get like information for
+ *     responses:
+ *       200:
+ *         description: Likes count and user like status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 blogId:
+ *                   type: integer
+ *                   example: 87
+ *                 likes_count:
+ *                   type: integer
+ *                   example: 10
+ *                 user_liked:
+ *                   type: boolean
+ *                   example: true
+ *       400:
+ *         description: Invalid blog ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Invalid blog ID
+ *       404:
+ *         description: Blog not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Blog not found
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Server error
+ *                 details:
+ *                   type: string
+ *                   example: Detailed error message
+ */
+export const getBlogLikes = async (req, res) => {
+  try {
+    const { blogId } = req.params;
+
+    if (!blogId || isNaN(blogId)) {
+      return res.status(400).json({ message: "Invalid blog ID" });
+    }
+
+    // Extract user ID from JWT (assuming `req.user.sub` is set by auth middleware)
+    const userId = req.user?.sub;
+
+    // Check if the blog exists
+    const [blogRows] = await db.query("SELECT id FROM blogs WHERE id = ?", [blogId]);
+    if (blogRows.length === 0) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    // Get total likes
+    const [likesCountRows] = await db.query(
+      "SELECT COUNT(*) as total_likes FROM blog_likes WHERE blog_id = ?",
+      [blogId]
+    );
+
+    // Check if current user liked it
+    let userLiked = false;
+    if (userId) {
+      const [userLikeRows] = await db.query(
+        "SELECT 1 FROM blog_likes WHERE blog_id = ? AND user_id = ? LIMIT 1",
+        [blogId, userId]
+      );
+      userLiked = userLikeRows.length > 0;
+    }
+
+    return res.status(200).json({
+      blogId,
+      likes_count: likesCountRows[0]?.total_likes || 0,
+      user_liked: userLiked
+    });
+
+  } catch (err) {
+    console.error("Error fetching total likes:", err);
+    return res.status(500).json({ message: "Server error", details: err.message });
+  }
+};
+
+
+
+
+// Add a comment to a blog
+/**
+ * @swagger
+ * /blogs/{blogId}/comments:
+ *   post:
+ *     summary: Add a comment to a specific blog post
+ *     tags:
+ *       - Blogs
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: blogId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the blog to add a comment to
+ *     requestBody:
+ *       description: Comment content
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - comment
+ *             properties:
+ *               comment:
+ *                 type: string
+ *                 example: This is a very insightful post!
+ *     responses:
+ *       201:
+ *         description: Comment added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Comment added successfully
+ *                 comment_id:
+ *                   type: integer
+ *                   example: 42
+ *                 created_at:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2025-08-11 14:30:00"
+ *       400:
+ *         description: Comment cannot be empty
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Comment cannot be empty
+ *       404:
+ *         description: Blog not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Blog not found
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Server error
+ *                 details:
+ *                   type: string
+ *                   example: Detailed error message
+ */
+export const addComment = async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const { blogId } = req.params;
+    const { comment } = req.body;
+
+    if (!comment || comment.trim() === "") {
+      return res.status(400).json({ message: "Comment cannot be empty" });
+    }
+
+    // Validate blog existence
+    const [blogRows] = await db.query("SELECT id FROM blogs WHERE id = ?", [blogId]);
+    if (blogRows.length === 0) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    // Get current time in IST
+    const createdAt = getCurrentISTDateTime();
+
+    // Insert comment with created_at
+    const [result] = await db.query(
+      "INSERT INTO blog_comments (blog_id, user_id, comment, created_at) VALUES (?, ?, ?, ?)",
+      [blogId, userId, comment, createdAt]
+    );
+
+    return res.status(201).json({
+      message: "Comment added successfully",
+      comment_id: result.insertId,
+      created_at: createdAt,
+    });
+  } catch (error) {
+    console.error("Error adding comment:", error);
+    return res.status(500).json({ message: "Server error", details: error.message });
+  }
+};
+
+
+
+
+// Helper function to get IST time formatted for MySQL
+function getCurrentISTDateTime() {
+  const date = new Date();
+
+  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+  const istOffset = 5.5 * 60 * 60000;
+  const istTime = new Date(utc + istOffset);
+
+  const year = istTime.getFullYear();
+  const month = String(istTime.getMonth() + 1).padStart(2, '0');
+  const day = String(istTime.getDate()).padStart(2, '0');
+  const hours = String(istTime.getHours()).padStart(2, '0');
+  const minutes = String(istTime.getMinutes()).padStart(2, '0');
+  const seconds = String(istTime.getSeconds()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+
+
+
+
+/**
+ * @swagger
+ * /blogs/{blogId}/comments:
+ *   get:
+ *     summary: Get comments for a specific blog post
+ *     tags:
+ *       - Blogs
+ *     parameters:
+ *       - in: path
+ *         name: blogId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the blog to fetch comments for
+ *     responses:
+ *       200:
+ *         description: List of comments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalComments:
+ *                   type: integer
+ *                   example: 5
+ *                 comments:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 10
+ *                       comment:
+ *                         type: string
+ *                         example: This is a great blog!
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2025-08-11T08:30:00Z"
+ *                       user_id:
+ *                         type: integer
+ *                         example: 3
+ *                       user_name:
+ *                         type: string
+ *                         example: "Ashok Patel"
+ *       404:
+ *         description: Blog not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Blog not found
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Server error
+ *                 details:
+ *                   type: string
+ *                   example: Detailed error message
+ */
+export const getComments = async (req, res) => {
+  try {
+    const { blogId } = req.params;
+
+    // Validate blog existence
+    const [blogRows] = await db.query("SELECT id FROM blogs WHERE id = ?", [blogId]);
+    if (blogRows.length === 0) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    // Fetch comments with user info
+    const [comments] = await db.query(
+      `SELECT c.id, c.comment, c.created_at, u.id as user_id, u.full_name as user_name
+       FROM blog_comments c
+       JOIN users u ON c.user_id = u.id
+       WHERE c.blog_id = ?
+       ORDER BY c.created_at DESC`,
+      [blogId]
+    );
+
+    return res.status(200).json({
+      totalComments: comments.length,
+      comments,
+    });
+  } catch (error) {
+    console.error("Error fetching comments:", error);
+    return res.status(500).json({ message: "Server error", details: error.message });
+  }
+};
+
+
+/**
+ * @swagger
+ * /blogs/{blogId}/share:
+ *   post:
+ *     summary: Share a blog post on a specific platform
+ *     tags:
+ *       - Blogs
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: blogId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the blog to share
+ *     requestBody:
+ *       description: Platform on which the blog is shared
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - platform
+ *             properties:
+ *               platform:
+ *                 type: string
+ *                 example: facebook
+ *     responses:
+ *       201:
+ *         description: Blog shared successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Blog shared successfully on facebook
+ *                 share_id:
+ *                   type: integer
+ *                   example: 123
+ *                 total_shares:
+ *                   type: integer
+ *                   example: 15
+ *       400:
+ *         description: Platform is required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Platform is required
+ *       404:
+ *         description: Blog not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Blog not found
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Server error
+ *                 details:
+ *                   type: string
+ *                   example: Detailed error message
+ */
+export const shareBlog = async (req, res) => {
+  try {
+    const userId = req.user.sub; // from JWT
+    const { blogId } = req.params;
+    const { platform } = req.body;
+
+    if (!platform || platform.trim() === "") {
+      return res.status(400).json({ message: "Platform is required" });
+    }
+
+    // Check blog existence
+    const [blogRows] = await db.query("SELECT id FROM blogs WHERE id = ?", [blogId]);
+    if (blogRows.length === 0) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    // Insert into blog_shares
+    const [result] = await db.query(
+      "INSERT INTO blog_shares (blog_id, user_id, platform) VALUES (?, ?, ?)",
+      [blogId, userId, platform]
+    );
+
+    // Get total share count
+    const [countRows] = await db.query(
+      "SELECT COUNT(*) AS totalShares FROM blog_shares WHERE blog_id = ?",
+      [blogId]
+    );
+
+    return res.status(201).json({
+      message: `Blog shared successfully on ${platform}`,
+      share_id: result.insertId,
+      total_shares: countRows[0].totalShares,
+    });
+  } catch (error) {
+    console.error("Error sharing blog:", error);
+    return res.status(500).json({ message: "Server error", details: error.message });
+  }
+};
+
+/**
+ * @swagger
+ * /blogs/{blogId}/share-count:
+ *   get:
+ *     summary: Get total share count for a blog
+ *     tags:
+ *       - Blogs
+ *     parameters:
+ *       - in: path
+ *         name: blogId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: ID of the blog to get share count for
+ *     responses:
+ *       200:
+ *         description: Total share count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 blog_id:
+ *                   type: integer
+ *                   example: 87
+ *                 total_shares:
+ *                   type: integer
+ *                   example: 15
+ *       404:
+ *         description: Blog not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Blog not found
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Server error
+ *                 details:
+ *                   type: string
+ *                   example: Detailed error message
+ */
+
+export const getBlogShareCount = async (req, res) => {
+  try {
+    const { blogId } = req.params;
+
+    // Check blog existence
+    const [blogRows] = await db.query("SELECT id FROM blogs WHERE id = ?", [blogId]);
+    if (blogRows.length === 0) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    // Fetch total share count
+    const [countRows] = await db.query(
+      "SELECT COUNT(*) AS totalShares FROM blog_shares WHERE blog_id = ?",
+      [blogId]
+    );
+
+    return res.status(200).json({
+      blog_id: blogId,
+      total_shares: countRows[0].totalShares,
+    });
+  } catch (error) {
+    console.error("Error fetching share count:", error);
+    return res.status(500).json({ message: "Server error", details: error.message });
+  }
+};

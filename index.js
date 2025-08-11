@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 
-// ✅ Enable CORS for all origins (for development)
+
 app.use(cors());
 
 // Optional: Restrict to only your frontend origin

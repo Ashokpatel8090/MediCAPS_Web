@@ -18,7 +18,6 @@ export const verifyToken = (req, res, next) => {
     const decodedUnverified = jwt.decode(token);
     // console.log('🧾 Decoded (Unverified) Token Payload:', decodedUnverified);
 
-    // ✅ Now verify the token
     const decoded = jwt.verify(token, config.jwtSecret);
     // console.log('✅ Decoded & Verified Token:', decoded);
 
@@ -31,11 +30,9 @@ export const verifyToken = (req, res, next) => {
 };
 
 export const authorizeAdmin = (req, res, next) => {
-  // console.log('🛡️ Role Check:', req.user?.role);
   if (req.user && req.user.role === 'Admin') {
     next();
   } else {
     res.status(403).json({ message: 'Access Denied: Admin privileges required' });
   }
 };
-
