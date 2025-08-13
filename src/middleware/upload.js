@@ -1,5 +1,4 @@
-// middlewares/upload.js
-import multer from 'multer';
+import multer from "multer";
 
 // Use memory storage to avoid saving to disk
 const storage = multer.memoryStorage();

@@ -1,5 +1,5 @@
 import db from '../config/db.js'
-import cloudinary from '../utils/cloudinary.config.js'
+import cloudinary from '../utils/cloudinary.config.js';
 import streamifier from 'streamifier';
 
 
@@ -201,13 +201,11 @@ export const getBlogBySlug = (req, res) => {
  *                   type: string
  *                   example: Duplicate entry 'slug' for key 'blogs.slug'
  */
-const streamUpload = (buffer) => {
+
+export const streamUpload = (buffer) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: 'medicaps/blogs',
-        resource_type: 'image',
-      },
+      { folder: "blogs" },
       (error, result) => {
         if (result) resolve(result);
         else reject(error);
@@ -217,58 +215,62 @@ const streamUpload = (buffer) => {
   });
 };
 
-// @desc Create Blog
-// controllers/blog.controller.js
-
 
 /**
  * @swagger
- * blogs/create:
+ * /blogs/create:
  *   post:
- *     summary: Create a new blog post
+ *     summary: Create a new blog
  *     tags:
  *       - Blogs
  *     security:
  *       - bearerAuth: []
  *     consumes:
  *       - multipart/form-data
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - title
- *               - slug
- *               - content
- *             properties:
- *               title:
- *                 type: string
- *                 description: Title of the blog post
- *               slug:
- *                 type: string
- *                 description: URL-friendly slug for the blog post
- *               content:
- *                 type: string
- *                 description: Main content of the blog post
- *               excerpt:
- *                 type: string
- *                 description: Short excerpt or summary
- *               published_at:
- *                 type: string
- *                 format: date-time
- *                 description: Optional publish date/time in ISO format
- *               meta_title:
- *                 type: string
- *                 description: SEO meta title
- *               meta_description:
- *                 type: string
- *                 description: SEO meta description
- *               file:
- *                 type: string
- *                 format: binary
- *                 description: Optional featured image file upload
+ *     parameters:
+ *       - in: formData
+ *         name: title
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Title of the blog
+ *       - in: formData
+ *         name: slug
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: URL-friendly slug for the blog
+ *       - in: formData
+ *         name: content
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Main content of the blog
+ *       - in: formData
+ *         name: excerpt
+ *         schema:
+ *           type: string
+ *         description: Short summary or excerpt of the blog
+ *       - in: formData
+ *         name: published_at
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Optional published date/time (ISO format)
+ *       - in: formData
+ *         name: meta_title
+ *         schema:
+ *           type: string
+ *         description: SEO meta title
+ *       - in: formData
+ *         name: meta_description
+ *         schema:
+ *           type: string
+ *         description: SEO meta description
+ *       - in: formData
+ *         name: file
+ *         type: file
+ *         description: Optional featured image file upload
  *     responses:
  *       201:
  *         description: Blog created successfully
@@ -282,12 +284,12 @@ const streamUpload = (buffer) => {
  *                   example: "✅ Blog created successfully"
  *                 blog_id:
  *                   type: integer
- *                   description: ID of the newly created blog
+ *                   example: 123
  *                 featured_image_url:
  *                   type: string
- *                   description: URL of the uploaded featured image (if any)
+ *                   example: "https://res.cloudinary.com/.../image.jpg"
  *       400:
- *         description: Missing required fields or validation error
+ *         description: Missing required fields
  *         content:
  *           application/json:
  *             schema:
@@ -295,7 +297,7 @@ const streamUpload = (buffer) => {
  *               properties:
  *                 error:
  *                   type: string
- *                   example: Title, slug, and content are required fields.
+ *                   example: "Title, slug, and content are required fields."
  *       500:
  *         description: Server error or image upload failure
  *         content:
@@ -305,11 +307,12 @@ const streamUpload = (buffer) => {
  *               properties:
  *                 error:
  *                   type: string
- *                   example: Something went wrong on the server
+ *                   example: "Something went wrong on the server"
  *                 details:
  *                   type: string
- *                   example: Detailed error message
+ *                   example: "Detailed error message"
  */
+
 export const createBlog = async (req, res) => {
   try {
     const {
@@ -322,7 +325,6 @@ export const createBlog = async (req, res) => {
       meta_description,
     } = req.body;
 
-    // Basic field validation
     if (!title || !slug || !content) {
       return res.status(400).json({
         error: "Title, slug, and content are required fields.",
@@ -332,10 +334,9 @@ export const createBlog = async (req, res) => {
     let featured_image_url = "";
     let featured_image_public_id = "";
 
-    // Optional image upload
     if (req.file && req.file.buffer) {
       try {
-        const result = await streamUpload(req.file.buffer); // Upload to Cloudinary
+        const result = await streamUpload(req.file.buffer);
         featured_image_url = result.secure_url;
         featured_image_public_id = result.public_id;
       } catch (err) {
@@ -358,7 +359,7 @@ export const createBlog = async (req, res) => {
       title,
       slug,
       content,
-      excerpt,
+      excerpt || "",
       ...(hasPublishedAt
         ? [new Date(published_at).toISOString().slice(0, 19).replace("T", " ")]
         : []),
@@ -383,6 +384,7 @@ export const createBlog = async (req, res) => {
     });
   }
 };
+
 
 
 
@@ -502,6 +504,7 @@ export const createBlog = async (req, res) => {
  *                   type: string
  *                   example: Detailed error message
  */
+
 export const updateBlog = async (req, res) => {
   const { id } = req.params;
 
@@ -589,7 +592,7 @@ export const updateBlog = async (req, res) => {
  * @swagger
  * /blogs/delete/{id}:
  *   delete:
- *     summary: Delete a blog by ID
+ *     summary: Delete a blog and its related data by ID
  *     tags:
  *       - Blogs
  *     security:
@@ -600,10 +603,10 @@ export const updateBlog = async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the blog to delete
+ *         description: ID of the blog to delete along with its comments, likes, and shares
  *     responses:
  *       200:
- *         description: Blog deleted successfully
+ *         description: Blog and related data deleted successfully
  *         content:
  *           application/json:
  *             schema:
@@ -611,7 +614,7 @@ export const updateBlog = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Blog deleted successfully
+ *                   example: Blog and related data deleted successfully
  *       404:
  *         description: Blog not found
  *         content:
@@ -633,22 +636,37 @@ export const updateBlog = async (req, res) => {
  *                   type: string
  *                   example: Internal server error
  */
+
 export const deleteBlog = async (req, res) => {
   const { id } = req.params;
 
+  const connection = await db.getConnection(); // assumes you're using a pool
+
   try {
-    const [result] = await db.query('DELETE FROM blogs WHERE id = ?', [id]);
+    await connection.beginTransaction();
+
+    await connection.query('DELETE FROM blog_comments WHERE blog_id = ?', [id]);
+    await connection.query('DELETE FROM blog_likes WHERE blog_id = ?', [id]);
+    await connection.query('DELETE FROM blog_shares WHERE blog_id = ?', [id]);
+    const [result] = await connection.query('DELETE FROM blogs WHERE id = ?', [id]);
 
     if (result.affectedRows === 0) {
+      await connection.rollback();
       return res.status(404).json({ error: 'Blog not found' });
     }
 
-    return res.status(200).json({ message: 'Blog deleted successfully' });
+    await connection.commit();
+    return res.status(200).json({ message: 'Blog and related data deleted successfully' });
   } catch (err) {
+    await connection.rollback();
     console.error('Delete Error:', err);
     return res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    connection.release();
   }
 };
+
+
 
 
 
@@ -1035,7 +1053,6 @@ function getCurrentISTDateTime() {
 
 
 
-
 /**
  * @swagger
  * /blogs/{blogId}/comments:
@@ -1137,6 +1154,8 @@ export const getComments = async (req, res) => {
 };
 
 
+
+
 /**
  * @swagger
  * /blogs/{blogId}/share:
@@ -1218,20 +1237,25 @@ export const getComments = async (req, res) => {
  *                   example: Detailed error message
  */
 export const shareBlog = async (req, res) => {
+  console.log('req.user:', req.user);
   try {
     const userId = req.user.sub; // from JWT
-    const { blogId } = req.params;
+    console.log(userId);
+    
+    const { slug } = req.params; // get slug from params instead of blogId
     const { platform } = req.body;
 
     if (!platform || platform.trim() === "") {
       return res.status(400).json({ message: "Platform is required" });
     }
 
-    // Check blog existence
-    const [blogRows] = await db.query("SELECT id FROM blogs WHERE id = ?", [blogId]);
+    // Find blog by slug
+    const [blogRows] = await db.query("SELECT id FROM blogs WHERE slug = ?", [slug]);
     if (blogRows.length === 0) {
       return res.status(404).json({ message: "Blog not found" });
     }
+
+    const blogId = blogRows[0].id;
 
     // Insert into blog_shares
     const [result] = await db.query(
@@ -1255,6 +1279,9 @@ export const shareBlog = async (req, res) => {
     return res.status(500).json({ message: "Server error", details: error.message });
   }
 };
+
+
+
 
 /**
  * @swagger
@@ -1311,13 +1338,15 @@ export const shareBlog = async (req, res) => {
 
 export const getBlogShareCount = async (req, res) => {
   try {
-    const { blogId } = req.params;
+    const { slug } = req.params;
 
-    // Check blog existence
-    const [blogRows] = await db.query("SELECT id FROM blogs WHERE id = ?", [blogId]);
+    // Check blog existence by slug
+    const [blogRows] = await db.query("SELECT id FROM blogs WHERE slug = ?", [slug]);
     if (blogRows.length === 0) {
       return res.status(404).json({ message: "Blog not found" });
     }
+
+    const blogId = blogRows[0].id;
 
     // Fetch total share count
     const [countRows] = await db.query(
@@ -1327,6 +1356,7 @@ export const getBlogShareCount = async (req, res) => {
 
     return res.status(200).json({
       blog_id: blogId,
+      slug: slug,
       total_shares: countRows[0].totalShares,
     });
   } catch (error) {

@@ -1,7 +1,6 @@
 import jwt from 'jsonwebtoken';
 import config from '../config/config.js';
 
-// --- middleware/authMiddleware.js ---
 
 
 export const verifyToken = (req, res, next) => {
@@ -14,13 +13,8 @@ export const verifyToken = (req, res, next) => {
   try {
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
 
-    // 🧾 Decode without verifying just to see what's inside
     const decodedUnverified = jwt.decode(token);
-    // console.log('🧾 Decoded (Unverified) Token Payload:', decodedUnverified);
-
     const decoded = jwt.verify(token, config.jwtSecret);
-    // console.log('✅ Decoded & Verified Token:', decoded);
-
     req.user = decoded;
     next();
   } catch (error) {

@@ -1,15 +1,34 @@
-import express from 'express'
-import { addComment, createBlog, deleteBlog, getAllBlogs, getBlogBySlug, getBlogLikes, getBlogShareCount, getComments, likeBlog, shareBlog, updateBlog,  } from '../controllers/blog.controller.js';
+import express from "express";
+import {
+  addComment,
+  createBlog,
+  deleteBlog,
+  getAllBlogs,
+  getBlogBySlug,
+  getBlogLikes,
+  getBlogShareCount,
+  getComments,
+  likeBlog,
+  shareBlog,
+  updateBlog,
+} from "../controllers/blog.controller.js";
+
+import upload from "../middleware/upload.js";
+import { verifyToken } from "../middleware/authMiddleware.js";
+
 const router = express.Router();
-import upload from '../middleware/upload.js';
-import { verifyToken } from '../middleware/authMiddleware.js';
 
+// ✅ Always put the most specific routes BEFORE the generic `:slug` route
 
-// Define blog routes
+// Blog sharing routes
+router.post("/api/blog/:slug/share", verifyToken, shareBlog);
+router.get("/api/blog/:slug/share-count", getBlogShareCount);
+
 router.get('/api/blogs', getAllBlogs);
 router.get('/api/blogs/search/:slug', getBlogBySlug);
 
-router.post('/api/blogs/create', upload.single('file'), createBlog);
+router.post("/api/blogs/create", upload.single("file"), createBlog);
+
 router.put('/api/blogs/update/:id', upload.single('file'), updateBlog);
 
 router.delete('/api/blogs/delete/:id', deleteBlog);
@@ -19,11 +38,5 @@ router.get("/api/blogs/:blogId/likes", verifyToken, getBlogLikes);
 
 router.post("/api/blogs/:blogId/comments", verifyToken, addComment);
 router.get("/api/blogs/:blogId/comments", getComments);
-
-router.post("/api/blogs/:blogId/share", verifyToken, shareBlog);
-// routes/blog.routes.js
-router.get("/api/blogs/:blogId/share-count", getBlogShareCount);
-
-
 
 export default router;

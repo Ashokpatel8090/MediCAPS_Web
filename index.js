@@ -16,11 +16,6 @@ app.use(express.json());
 
 app.use(cors());
 
-// Optional: Restrict to only your frontend origin
-// app.use(cors({
-//   origin: 'http://localhost:3000'
-// }));
-
 // ✅ Swagger Docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
