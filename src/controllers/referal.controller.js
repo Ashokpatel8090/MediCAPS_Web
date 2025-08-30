@@ -45,7 +45,13 @@ export const getAllReferrals = async (req, res) => {
         u1.full_name AS referrer_name,
         u1.email AS referrer_email,
         u1.phone AS referrer_phone,
-        
+
+        -- Referrer channel partner profile
+        cpp.total_referrals,
+        cpp.total_commission_earned,
+        cpp.commission_percentage,
+        cpp.status AS partner_status,
+
         -- Referee details
         u2.id AS referee_id,
         u2.full_name AS referee_name,
@@ -55,6 +61,7 @@ export const getAllReferrals = async (req, res) => {
       FROM referrals r
       JOIN users u1 ON r.referrer_id = u1.id
       JOIN users u2 ON r.referee_id = u2.id
+      LEFT JOIN channel_partner_profiles cpp ON cpp.user_id = u1.id
       ORDER BY r.created_at DESC
     `);
 
@@ -70,14 +77,19 @@ export const getAllReferrals = async (req, res) => {
           referrer_name: row.referrer_name,
           referrer_email: row.referrer_email,
           referrer_phone: row.referrer_phone,
+          commission_percentage: row.commission_percentage,
+          partner_status: row.partner_status,
+          total_referrals: row.total_referrals || 0,
+          total_commission_earned: row.total_commission_earned || 0,
+          referral_code: row.referral_code, // ✅ put referral_code at referrer level
           referrals_count: 0,
           referrals: []
         };
       }
 
+      // Only push referee details, not referral_code
       grouped[referrerId].referrals.push({
         referral_id: row.referral_id,
-        referral_code: row.referral_code,
         status: row.status,
         created_at: row.created_at,
         referee_id: row.referee_id,
