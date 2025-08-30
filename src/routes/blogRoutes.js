@@ -3,7 +3,9 @@ import {
   addComment,
   createBlog,
   deleteBlog,
+  deleteImage,
   getAllBlogs,
+  getBlogById,
   getBlogBySlug,
   getBlogLikes,
   getBlogShareCount,
@@ -11,6 +13,7 @@ import {
   likeBlog,
   shareBlog,
   updateBlog,
+  uploadImage,
 } from "../controllers/blog.controller.js";
 
 import upload from "../middleware/upload.js";
@@ -26,10 +29,13 @@ router.get("/api/blog/:slug/share-count", getBlogShareCount);
 
 router.get('/api/blogs', getAllBlogs);
 router.get('/api/blogs/search/:slug', getBlogBySlug);
+// POST instead of GET to pass ID in body
+router.get('/api/blogs/:id', getBlogById);
+
 
 router.post("/api/blogs/create", upload.single("file"), createBlog);
 
-router.put('/api/blogs/update/:id', upload.single('file'), updateBlog);
+router.patch('/api/blogs/update/:id', upload.single('file'), updateBlog);
 
 router.delete('/api/blogs/delete/:id', deleteBlog);
 
@@ -38,5 +44,9 @@ router.get("/api/blogs/:blogId/likes", verifyToken, getBlogLikes);
 
 router.post("/api/blogs/:blogId/comments", verifyToken, addComment);
 router.get("/api/blogs/:blogId/comments", getComments);
+
+router.post("/api/images/upload", upload.single("file"), uploadImage);
+router.delete("/api/images/delete", deleteImage);
+
 
 export default router;

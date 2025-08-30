@@ -441,7 +441,7 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT 
-        d.id AS doctor_id,
+        d.user_id AS user_id,
         u.full_name AS name,
         u.email,
         u.phone,
@@ -546,6 +546,129 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
   } catch (error) {
     console.error('❌ Error fetching verified doctors:', error.message);
     res.status(500).json({ error: 'Server error' });
+  }
+};
+
+
+
+export const getVerifiedDoctorDetailsById = async (req, res) => {
+  try {
+    const { id } = req.params; // this is user_id
+
+    // Fetch main doctor data
+    const [rows] = await db.query(`
+      SELECT 
+        d.id AS doctor_id,        -- ✅ keep actual doctor table id
+        d.user_id AS user_id,     -- ✅ link to user
+        u.full_name AS name,
+        u.email,
+        u.phone,
+        d.bio,
+        d.experience_years,
+        d.languages_spoken,
+        d.average_rating,
+        d.total_reviews,
+        d.is_verified,
+        d.profile_url,
+        d.profile_img_public_id,
+        a.street AS address,
+        a.postal_code,
+        c.name AS city,
+        s.name AS state,
+        cn.name AS country
+      FROM doctors d
+      JOIN users u ON d.user_id = u.id
+      LEFT JOIN addresses a ON a.id = d.address_id
+      LEFT JOIN states s ON a.state_id = s.id
+      LEFT JOIN countries cn ON a.country_id = cn.id
+      LEFT JOIN cities c ON a.city_id = c.id
+      WHERE d.is_verified = '1' 
+        AND d.is_verified IS NOT NULL
+        AND d.user_id = ?         -- ✅ filter by user_id
+    `, [id]);
+
+    if (!rows.length) {
+      return res.status(404).json({ error: "Doctor not found" });
+    }
+
+    const doctor = rows[0];
+    const doctorId = doctor.doctor_id; // ✅ now exists
+
+    // Qualifications
+    const [qualifications] = await db.query(
+      `SELECT DISTINCT 
+         CONCAT(degree_name, ' from ', institution, ' (', completion_year, ')') AS qualification
+       FROM doctor_qualifications
+       WHERE doctor_id = ?`,
+      [doctorId]
+    );
+    doctor.qualifications = qualifications.map(q => q.qualification).join('; ');
+
+    // Schedules
+    const [schedules] = await db.query(
+      `SELECT 
+         day_of_week, start_time, end_time, consultation_mode, is_active
+       FROM doctor_schedules
+       WHERE doctor_practice_id IN (
+         SELECT id FROM doctor_practices WHERE doctor_id = ?
+       )`,
+      [doctorId]
+    );
+    doctor.schedules = schedules;
+
+    // Availability Slots
+    const [slots] = await db.query(
+      `SELECT 
+         slot_start_time, slot_end_time, consultation_mode, slot_date, created_from_schedule_id
+       FROM availability_slots
+       WHERE doctor_practice_id IN (
+         SELECT id FROM doctor_practices WHERE doctor_id = ?
+       )`,
+      [doctorId]
+    );
+    doctor.availability_slots = slots;
+
+    // Appointments
+    const [appointments] = await db.query(
+      `SELECT 
+         a.id,
+         a.slot_id,
+         a.patient_profile_id,
+         a.status,
+         a.consultation_type,
+         a.patient_symptoms,
+         a.channel_name,
+         u.full_name AS patient_name,
+         s.slot_start_time,
+         s.slot_end_time,
+         s.slot_date
+       FROM appointments a
+       LEFT JOIN patient_profiles pp ON a.patient_profile_id = pp.id
+       LEFT JOIN users u ON pp.user_id = u.id
+       LEFT JOIN availability_slots s ON a.slot_id = s.id
+       WHERE a.doctor_id = ?`,
+      [doctorId]
+    );
+    doctor.appointments = appointments;
+
+    // Documents
+    const [documents] = await db.query(
+      `SELECT d1.*
+       FROM doctor_verification_docs d1
+       INNER JOIN (
+         SELECT MIN(id) AS min_id
+         FROM doctor_verification_docs
+         WHERE doctor_id = ?
+         GROUP BY public_id
+       ) d2 ON d1.id = d2.min_id`,
+      [doctorId]
+    );
+    doctor.documents = documents;
+
+    res.status(200).json(doctor);
+  } catch (error) {
+    console.error("❌ Error fetching doctor details:", error.message);
+    res.status(500).json({ error: "Server error" });
   }
 };
 

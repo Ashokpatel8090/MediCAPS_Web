@@ -205,7 +205,7 @@ export const getBlogBySlug = (req, res) => {
 export const streamUpload = (buffer) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder: "blogs" },
+      { folder: "medicaps/blogs" },
       (error, result) => {
         if (result) resolve(result);
         else reject(error);
@@ -213,6 +213,182 @@ export const streamUpload = (buffer) => {
     );
     streamifier.createReadStream(buffer).pipe(stream);
   });
+};
+
+
+/**
+ * @swagger
+ * /images/upload:
+ *   post:
+ *     summary: Upload an image to Cloudinary
+ *     tags:
+ *       - Images
+ *     consumes:
+ *       - multipart/form-data
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Image file to upload
+ *     responses:
+ *       200:
+ *         description: Image uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: ✅ Image uploaded successfully
+ *                 url:
+ *                   type: string
+ *                   example: https://res.cloudinary.com/.../image.jpg
+ *                 public_id:
+ *                   type: string
+ *                   example: medicaps/blogs/abc123
+ *       400:
+ *         description: No image provided
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: No image provided
+ *       500:
+ *         description: Image upload failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Image upload failed
+ *                 details:
+ *                   type: string
+ *                   example: Error message from Cloudinary
+ */
+
+export const uploadImage = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ error: "No image provided" });
+    }
+
+    const result = await streamUpload(req.file.buffer);
+
+    return res.status(200).json({
+      message: "✅ Image uploaded successfully",
+      url: result.secure_url,
+      public_id: result.public_id,
+    });
+  } catch (err) {
+    console.error("Image upload error:", err);
+    return res.status(500).json({
+      error: "Image upload failed",
+      details: err.message,
+    });
+  }
+};
+
+
+/**
+ * @swagger
+ * /images/delete:
+ *   delete:
+ *     summary: Delete an uploaded image from Cloudinary
+ *     tags:
+ *       - Images
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               public_id:
+ *                 type: string
+ *                 description: Public ID of the image to delete
+ *                 example: medicaps/blogs/abc123
+ *     responses:
+ *       200:
+ *         description: Image deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: 🗑️ Image deleted successfully
+ *                 result:
+ *                   type: object
+ *                   example: { "result": "ok" }
+ *       400:
+ *         description: Failed to delete image / public_id not provided
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: public_id is required
+ *                 details:
+ *                   type: string
+ *                   example: Failed to delete image
+ *       500:
+ *         description: Image deletion failed due to server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Image deletion failed
+ *                 details:
+ *                   type: string
+ *                   example: Error message from Cloudinary
+ */
+
+export const deleteImage = async (req, res) => {
+  try {
+    const { public_id } = req.body;
+
+    if (!public_id) {
+      return res.status(400).json({ error: "public_id is required" });
+    }
+
+    const result = await cloudinary.uploader.destroy(public_id);
+
+    if (result.result !== "ok") {
+      return res.status(400).json({
+        error: "Failed to delete image",
+        details: result,
+      });
+    }
+
+    return res.status(200).json({
+      message: "🗑️ Image deleted successfully",
+      result,
+    });
+  } catch (err) {
+    console.error("Delete image error:", err);
+    return res.status(500).json({
+      error: "Image deletion failed",
+      details: err.message,
+    });
+  }
 };
 
 
@@ -323,29 +499,14 @@ export const createBlog = async (req, res) => {
       published_at,
       meta_title,
       meta_description,
+      featured_image_url,
+      featured_image_public_id,
     } = req.body;
 
     if (!title || !slug || !content) {
       return res.status(400).json({
         error: "Title, slug, and content are required fields.",
       });
-    }
-
-    let featured_image_url = "";
-    let featured_image_public_id = "";
-
-    if (req.file && req.file.buffer) {
-      try {
-        const result = await streamUpload(req.file.buffer);
-        featured_image_url = result.secure_url;
-        featured_image_public_id = result.public_id;
-      } catch (err) {
-        console.error("Cloudinary upload failed:", err);
-        return res.status(500).json({
-          error: "Image upload failed",
-          details: err.message,
-        });
-      }
     }
 
     const hasPublishedAt = published_at && published_at.trim() !== "";
@@ -363,8 +524,8 @@ export const createBlog = async (req, res) => {
       ...(hasPublishedAt
         ? [new Date(published_at).toISOString().slice(0, 19).replace("T", " ")]
         : []),
-      featured_image_url,
-      featured_image_public_id,
+      featured_image_url || "",
+      featured_image_public_id || "",
       meta_title || "",
       meta_description || "",
     ];
@@ -375,6 +536,7 @@ export const createBlog = async (req, res) => {
       message: "✅ Blog created successfully",
       blog_id: result.insertId,
       featured_image_url,
+      featured_image_public_id,
     });
   } catch (err) {
     console.error("Unhandled Server Error:", err);
@@ -384,7 +546,6 @@ export const createBlog = async (req, res) => {
     });
   }
 };
-
 
 
 
@@ -508,84 +669,111 @@ export const createBlog = async (req, res) => {
 export const updateBlog = async (req, res) => {
   const { id } = req.params;
 
-  const useValidValue = (newVal, oldVal) => {
-    return newVal !== undefined && newVal !== null && newVal !== "" ? newVal : oldVal;
-  };
-
   try {
     const [rows] = await db.query(`SELECT * FROM blogs WHERE id = ?`, [id]);
-    if (rows.length === 0) return res.status(404).json({ error: "Blog not found" });
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Blog not found" });
+    }
 
     const existing = rows[0];
+    let oldImagePublicId = null;
+    let cloudinaryDeleteResult = null;
 
-    let updatedBlog = {
-      title: useValidValue(req.body.title, existing.title),
-      slug: useValidValue(req.body.slug, existing.slug),
-      content: useValidValue(req.body.content, existing.content),
-      excerpt: useValidValue(req.body.excerpt, existing.excerpt),
-      published_at: useValidValue(req.body.published_at, existing.published_at),
-      featured_image_url: useValidValue(req.body.featured_image_url, existing.featured_image_url),
-      featured_image_public_id: useValidValue(req.body.featured_image_public_id, existing.featured_image_public_id),
-      meta_title: useValidValue(req.body.meta_title, existing.meta_title),
-      meta_description: useValidValue(req.body.meta_description, existing.meta_description),
-    };
+    const updatableFields = [
+      "title",
+      "slug",
+      "content",
+      "excerpt",
+      "published_at",
+      "meta_title",
+      "meta_description",
+      "featured_image_url",
+      "featured_image_public_id",
+    ];
 
-    if (req.file) {
-      try {
-        const result = await streamUpload(req.file.buffer);
-        updatedBlog.featured_image_url = result.secure_url;
-        updatedBlog.featured_image_public_id = result.public_id;
-      } catch (err) {
-        return res.status(500).json({ error: "Image upload failed", details: err.message });
+    const fieldsToUpdate = [];
+    const values = [];
+
+    for (const field of updatableFields) {
+      // ✅ Special rule for "content"
+      if (field === "content") {
+        if (
+          req.body.hasOwnProperty("content") &&
+          req.body.content !== null &&
+          req.body.content !== undefined &&
+          req.body.content.trim() !== ""
+        ) {
+          // only update if non-empty
+          fieldsToUpdate.push(`${field} = ?`);
+          values.push(req.body.content);
+        }
+        continue; // skip updating if empty or missing
+      }
+
+      // ✅ Other fields
+      if (!req.body.hasOwnProperty(field)) {
+        continue; // skip if not in request
+      }
+
+      const value = req.body[field];
+
+      if (field === "published_at") {
+        try {
+          const dateObj = new Date(value);
+          fieldsToUpdate.push(`${field} = ?`);
+          values.push(dateObj.toISOString().slice(0, 19).replace("T", " "));
+        } catch {
+          return res.status(400).json({ error: "Invalid published_at format" });
+        }
+      } else {
+        if (
+          field === "featured_image_public_id" &&
+          value !== existing.featured_image_public_id
+        ) {
+          oldImagePublicId = existing.featured_image_public_id;
+        }
+
+        fieldsToUpdate.push(`${field} = ?`);
+        values.push(value);
       }
     }
 
-    if (req.body.published_at) {
-      try {
-        const dateObj = new Date(req.body.published_at);
-        updatedBlog.published_at = dateObj.toISOString().slice(0, 19).replace("T", " ");
-      } catch (err) {
-        return res.status(400).json({ error: "Invalid published_at format" });
-      }
-    }
-
-    const hasChanged = Object.entries(updatedBlog).some(
-      ([key, value]) => value !== existing[key]
-    );
-
-    if (!hasChanged) {
-      return res.status(400).json({ message: "No changes detected in blog content" });
+    if (fieldsToUpdate.length === 0) {
+      return res.json({ message: "⚠️ No fields updated", blog: existing });
     }
 
     const query = `
-      UPDATE blogs SET 
-        title = ?, slug = ?, content = ?, excerpt = ?, published_at = ?, 
-        featured_image_url = ?, featured_image_public_id = ?, 
-        meta_title = ?, meta_description = ?
+      UPDATE blogs 
+      SET ${fieldsToUpdate.join(", ")} 
       WHERE id = ?
     `;
 
-    const values = [
-      updatedBlog.title,
-      updatedBlog.slug,
-      updatedBlog.content,
-      updatedBlog.excerpt,
-      updatedBlog.published_at,
-      updatedBlog.featured_image_url,
-      updatedBlog.featured_image_public_id,
-      updatedBlog.meta_title,
-      updatedBlog.meta_description,
-      id,
-    ];
-
+    values.push(id);
     await db.query(query, values);
 
-    return res.json({ message: "Blog updated successfully" });
+    // ✅ Delete old image if replaced
+    if (oldImagePublicId) {
+      try {
+        cloudinaryDeleteResult = await cloudinary.uploader.destroy(oldImagePublicId);
+        console.log("🗑️ Old image deleted:", cloudinaryDeleteResult);
+      } catch (err) {
+        console.error("Failed to delete old image:", err.message);
+      }
+    }
+
+    return res.json({
+      message: "✅ Blog updated successfully",
+      updatedFields: fieldsToUpdate.map(f => f.split(" = ")[0]),
+      deletedImage: oldImagePublicId || null,
+      deleteResult: cloudinaryDeleteResult || null,
+    });
   } catch (err) {
     console.error("Update Error:", err);
     return res.status(500).json({ error: "Server error", details: err.message });
   }
 };
+
+
 
 
 /**
@@ -639,15 +827,38 @@ export const updateBlog = async (req, res) => {
 
 export const deleteBlog = async (req, res) => {
   const { id } = req.params;
-
-  const connection = await db.getConnection(); // assumes you're using a pool
+  const connection = await db.getConnection();
 
   try {
     await connection.beginTransaction();
 
+    // 1️⃣ Get the blog to fetch its image public_id
+    const [blogs] = await connection.query('SELECT featured_image_public_id FROM blogs WHERE id = ?', [id]);
+
+    if (blogs.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Blog not found' });
+    }
+
+    const blog = blogs[0];
+
+    // 2️⃣ Delete the image from Cloudinary if it exists
+    if (blog.featured_image_public_id) {
+      try {
+        const cloudResult = await cloudinary.uploader.destroy(blog.featured_image_public_id);
+        console.log('Cloudinary delete result:', cloudResult);
+      } catch (cloudErr) {
+        console.error('Cloudinary delete error:', cloudErr);
+        // optionally, continue deleting the blog even if the image deletion fails
+      }
+    }
+
+    // 3️⃣ Delete related tables
     await connection.query('DELETE FROM blog_comments WHERE blog_id = ?', [id]);
     await connection.query('DELETE FROM blog_likes WHERE blog_id = ?', [id]);
     await connection.query('DELETE FROM blog_shares WHERE blog_id = ?', [id]);
+
+    // 4️⃣ Delete the blog itself
     const [result] = await connection.query('DELETE FROM blogs WHERE id = ?', [id]);
 
     if (result.affectedRows === 0) {
@@ -656,7 +867,8 @@ export const deleteBlog = async (req, res) => {
     }
 
     await connection.commit();
-    return res.status(200).json({ message: 'Blog and related data deleted successfully' });
+    return res.status(200).json({ message: 'Blog, related data, and image deleted successfully' });
+
   } catch (err) {
     await connection.rollback();
     console.error('Delete Error:', err);
@@ -1364,3 +1576,117 @@ export const getBlogShareCount = async (req, res) => {
     return res.status(500).json({ message: "Server error", details: error.message });
   }
 };
+
+
+
+/**
+ * @swagger
+ * /blogs/{id}:
+ *   get:
+ *     summary: Get a blog by its ID
+ *     tags:
+ *       - Blogs
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the blog to fetch
+ *     responses:
+ *       200:
+ *         description: Blog fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                   example: 123
+ *                 title:
+ *                   type: string
+ *                   example: "My First Blog"
+ *                 slug:
+ *                   type: string
+ *                   example: "my-first-blog"
+ *                 content:
+ *                   type: string
+ *                   example: "<p>This is the blog content</p>"
+ *                 excerpt:
+ *                   type: string
+ *                   example: "This is a short summary..."
+ *                 published_at:
+ *                   type: string
+ *                   example: "2025-08-23 15:30:00"
+ *                 featured_image_url:
+ *                   type: string
+ *                   example: "https://res.cloudinary.com/.../blog.jpg"
+ *                 featured_image_public_id:
+ *                   type: string
+ *                   example: "blogs/blog123"
+ *                 meta_title:
+ *                   type: string
+ *                   example: "My First Blog Meta Title"
+ *                 meta_description:
+ *                   type: string
+ *                   example: "Meta description of my first blog"
+ *       400:
+ *         description: Blog ID is missing in the request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Blog ID is required in the URL"
+ *       404:
+ *         description: Blog not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Blog not found"
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Server error"
+ *                 details:
+ *                   type: string
+ *                   example: "Detailed error message"
+ */
+
+// GET blog by ID
+export const getBlogById = async (req, res) => {
+  const { id } = req.params; // fetch ID from URL params
+
+  if (!id) {
+    return res.status(400).json({ error: "Blog ID is required in the URL" });
+  }
+
+  try {
+    const [rows] = await db.query(`SELECT * FROM blogs WHERE id = ?`, [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Blog not found" });
+    }
+
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error("Fetch Blog Error:", err);
+    return res.status(500).json({ error: "Server error", details: err.message });
+  }
+};
+
+
+

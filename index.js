@@ -5,6 +5,7 @@ import userRoutes from './src/routes/userroute.js';
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from './src/swagger/swaggerSpec.js';
 import blogRoutes from "./src/routes/blogRoutes.js"
+import subscriptionRoutes from './src/routes/subscriptionRoutes.js'
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // ✅ Routes
 app.use('/api', userRoutes);
 app.use(blogRoutes);
+app.use('/api', subscriptionRoutes);
 
 // ✅ Start Server
 app.listen(PORT, () => {
