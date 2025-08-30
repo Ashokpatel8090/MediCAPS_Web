@@ -58,11 +58,43 @@ export const getAllReferrals = async (req, res) => {
       ORDER BY r.created_at DESC
     `);
 
+    // Group referrals by referrer
+    const grouped = {};
+
+    rows.forEach(row => {
+      const referrerId = row.referrer_id;
+
+      if (!grouped[referrerId]) {
+        grouped[referrerId] = {
+          referrer_id: row.referrer_id,
+          referrer_name: row.referrer_name,
+          referrer_email: row.referrer_email,
+          referrer_phone: row.referrer_phone,
+          referrals_count: 0,
+          referrals: []
+        };
+      }
+
+      grouped[referrerId].referrals.push({
+        referral_id: row.referral_id,
+        referral_code: row.referral_code,
+        status: row.status,
+        created_at: row.created_at,
+        referee_id: row.referee_id,
+        referee_name: row.referee_name,
+        referee_email: row.referee_email,
+        referee_phone: row.referee_phone,
+      });
+
+      grouped[referrerId].referrals_count++;
+    });
+
     res.status(200).json({
       success: true,
-      count: rows.length,
-      data: rows,
+      count: Object.keys(grouped).length, // number of referrers
+      data: Object.values(grouped), // array of referrers with their referees
     });
+
   } catch (error) {
     console.error("Error fetching referrals:", error);
     res.status(500).json({
