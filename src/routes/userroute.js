@@ -2,7 +2,7 @@ import express from 'express';
 import { authorizeAdmin, verifyToken } from '../middleware/authMiddleware.js';
 import { getVerifiedDoctorDetailsById, getVerifiedDoctors, getVerifiedDoctorsDetails, handleActivateUser, handleDeactivateUser } from '../controllers/user.controller.js';
 import { getAllDoctorsWithPracticeDetails, getAllHospitals, getAllPatients, getClinicById, getDoctorRatingsAndReviews  } from '../controllers/hospitals.controller.js';
-import { getAllChannelPartners, getAllReferrals } from '../controllers/referal.controller.js';
+import { getAllChannelPartners, getAllReferrals, getAllUsersWithContactsInfo, getUserWithContacts } from '../controllers/referal.controller.js';
 
 const router = express.Router();
 
@@ -22,5 +22,9 @@ router.get('/admin/reviews', getDoctorRatingsAndReviews);
 
 router.get("/admin/channel-partners", getAllChannelPartners);
 router.get("/admin/refrals-details", getAllReferrals);
+
+
+router.get("/admin/user-contacts/:userId", getUserWithContacts);
+router.get("/admin/user-contacts", getAllUsersWithContactsInfo);
 
 export default router;

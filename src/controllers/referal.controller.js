@@ -116,3 +116,85 @@ export const getAllReferrals = async (req, res) => {
     });
   }
 };
+
+
+
+
+// Get user with their contact details
+export const getUserWithContacts = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(userId);
+    
+
+    const query = `
+      SELECT 
+        u.id AS user_id,
+        u.full_name AS user_name,
+        u.email,
+        u.phone,
+        uc.id AS contact_id,
+        uc.contact_name,
+        uc.contact_number,
+        uc.created_at AS contact_created_at
+      FROM users u
+      LEFT JOIN user_contacts uc ON u.id = uc.user_id
+      WHERE u.id = ?;
+    `;
+
+    const [rows] = await db.query(query, [userId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Group user info + contacts
+    const userInfo = {
+      user_id: rows[0].user_id,
+      user_name: rows[0].user_name,
+      email: rows[0].email,
+      phone: rows[0].phone,
+      contacts: rows
+        .filter(r => r.contact_id) // exclude if no contacts
+        .map(r => ({
+          contact_id: r.contact_id,
+          contact_name: r.contact_name,
+          contact_number: r.contact_number,
+          created_at: r.contact_created_at,
+        })),
+    };
+
+    res.status(200).json({ success: true, data: userInfo });
+  } catch (error) {
+    console.error("Error fetching user with contacts:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+
+export const getAllUsersWithContactsInfo = async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT 
+        u.id AS user_id,
+        u.full_name AS user_name,
+        u.email,
+        u.phone
+      FROM users u
+      INNER JOIN user_contacts uc ON u.id = uc.user_id
+      ORDER BY u.id ASC;
+    `;
+
+    const [rows] = await db.query(query);
+
+    res.status(200).json({
+      success: true,
+      count: rows.length,
+      data: rows,
+    });
+  } catch (error) {
+    console.error("Error fetching users with contacts info:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
