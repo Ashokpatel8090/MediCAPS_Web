@@ -45,7 +45,8 @@ router.get("/api/blogs/:blogId/likes", verifyToken, getBlogLikes);
 router.post("/api/blogs/:blogId/comments", verifyToken, addComment);
 router.get("/api/blogs/:blogId/comments", getComments);
 
-router.post("/api/images/upload", upload.single("file"), uploadImage);
+// router.post("/api/images/upload", upload.single("file"), uploadImage);
+router.post("/api/images/upload", upload.array("images", 10), uploadImage);
 router.delete("/api/images/delete", deleteImage);
 
 

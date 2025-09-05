@@ -1,5 +1,68 @@
 import db from "../config/db.js";
 
+
+/**
+ * @swagger
+ * /admin/channel-partners:
+ *   get:
+ *     summary: Get all channel partners
+ *     description: Fetches all channel partners along with their user details (full name, email, phone).
+ *     tags:
+ *       - Channel Partners
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched channel partners
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 1
+ *                       user_id:
+ *                         type: integer
+ *                         example: 10
+ *                       company_name:
+ *                         type: string
+ *                         example: ABC Pvt Ltd
+ *                       gst_number:
+ *                         type: string
+ *                         example: 29ABCDE1234F1Z5
+ *                       address:
+ *                         type: string
+ *                         example: 123 Main Street, Mumbai
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2025-09-01T10:00:00Z
+ *                       updated_at:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2025-09-01T12:00:00Z
+ *                       full_name:
+ *                         type: string
+ *                         example: John Doe
+ *                       email:
+ *                         type: string
+ *                         example: johndoe@example.com
+ *                       phone:
+ *                         type: string
+ *                         example: +91-9876543210
+ *       500:
+ *         description: Failed to fetch channel partners
+ */
+
 export const getAllChannelPartners = async (req, res) => {
   try {
     const [rows] = await db.query(`
@@ -29,6 +92,97 @@ export const getAllChannelPartners = async (req, res) => {
 
 
 
+/**
+ * @swagger
+ * /admin/refrals-details:
+ *   get:
+ *     summary: Get all referrals grouped by referrer
+ *     description: Fetches all referrals, grouped by the referrer (channel partner) with details of referees.
+ *     tags:
+ *       - Referrals
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched referrals
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       referrer_id:
+ *                         type: integer
+ *                         example: 10
+ *                       referrer_name:
+ *                         type: string
+ *                         example: Rajesh Kumar
+ *                       referrer_email:
+ *                         type: string
+ *                         example: rajesh@example.com
+ *                       referrer_phone:
+ *                         type: string
+ *                         example: +91-9876543210
+ *                       commission_percentage:
+ *                         type: number
+ *                         format: float
+ *                         example: 5.5
+ *                       partner_status:
+ *                         type: string
+ *                         example: active
+ *                       total_referrals:
+ *                         type: integer
+ *                         example: 12
+ *                       total_commission_earned:
+ *                         type: number
+ *                         format: float
+ *                         example: 3500.75
+ *                       referral_code:
+ *                         type: string
+ *                         example: REF123XYZ
+ *                       referrals_count:
+ *                         type: integer
+ *                         example: 3
+ *                       referrals:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             referral_id:
+ *                               type: integer
+ *                               example: 101
+ *                             status:
+ *                               type: string
+ *                               example: pending
+ *                             created_at:
+ *                               type: string
+ *                               format: date-time
+ *                               example: 2025-09-01T10:00:00Z
+ *                             referee_id:
+ *                               type: integer
+ *                               example: 22
+ *                             referee_name:
+ *                               type: string
+ *                               example: Anjali Sharma
+ *                             referee_email:
+ *                               type: string
+ *                               example: anjali@example.com
+ *                             referee_phone:
+ *                               type: string
+ *                               example: +91-9123456789
+ *       500:
+ *         description: Failed to fetch referrals
+ */
 
 
 export const getAllReferrals = async (req, res) => {
@@ -119,6 +273,74 @@ export const getAllReferrals = async (req, res) => {
 
 
 
+/**
+ * @swagger
+ * /admin/user-contacts/:userId:
+ *   get:
+ *     summary: Get a user with their contacts
+ *     description: Fetches a single user by ID along with their associated contacts.
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: userId
+ *         in: path
+ *         required: true
+ *         description: ID of the user to fetch
+ *         schema:
+ *           type: integer
+ *           example: 5
+ *     responses:
+ *       200:
+ *         description: Successfully fetched user with contacts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user_id:
+ *                       type: integer
+ *                       example: 5
+ *                     user_name:
+ *                       type: string
+ *                       example: Suresh Patel
+ *                     email:
+ *                       type: string
+ *                       example: suresh@example.com
+ *                     phone:
+ *                       type: string
+ *                       example: +91-9876543210
+ *                     contacts:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           contact_id:
+ *                             type: integer
+ *                             example: 12
+ *                           contact_name:
+ *                             type: string
+ *                             example: Mahesh Sharma
+ *                           contact_number:
+ *                             type: string
+ *                             example: +91-9123456789
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                             example: 2025-09-01T10:00:00Z
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+
 
 // Get user with their contact details
 export const getUserWithContacts = async (req, res) => {
@@ -171,6 +393,53 @@ export const getUserWithContacts = async (req, res) => {
   }
 };
 
+
+
+
+/**
+ * @swagger
+ * /admin/user-contacts:
+ *   get:
+ *     summary: Get all users with contacts info
+ *     description: Fetches all users who have at least one contact in the system (basic user info only).
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched users with contacts info
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 3
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       user_id:
+ *                         type: integer
+ *                         example: 7
+ *                       user_name:
+ *                         type: string
+ *                         example: Anita Verma
+ *                       email:
+ *                         type: string
+ *                         example: anita@example.com
+ *                       phone:
+ *                         type: string
+ *                         example: +91-9876543210
+ *       500:
+ *         description: Server error
+ */
 
 
 export const getAllUsersWithContactsInfo = async (req, res) => {

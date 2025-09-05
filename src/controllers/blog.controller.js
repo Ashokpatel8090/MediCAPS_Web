@@ -205,7 +205,9 @@ export const getBlogBySlug = (req, res) => {
 export const streamUpload = (buffer) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder: "medicaps/blogs" },
+      // { folder: "medicaps/blogs" },
+            { folder: "testing" },
+
       (error, result) => {
         if (result) resolve(result);
         else reject(error);
@@ -280,16 +282,21 @@ export const streamUpload = (buffer) => {
 
 export const uploadImage = async (req, res) => {
   try {
-    if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ error: "No image provided" });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: "No images provided" });
     }
 
-    const result = await streamUpload(req.file.buffer);
+    // Upload all images in parallel
+    const uploadResults = await Promise.all(
+      req.files.map((file) => streamUpload(file.buffer))
+    );
 
     return res.status(200).json({
-      message: "✅ Image uploaded successfully",
-      url: result.secure_url,
-      public_id: result.public_id,
+      message: "✅ Images uploaded successfully",
+      images: uploadResults.map((img) => ({
+        url: img.secure_url,
+        public_id: img.public_id,
+      })),
     });
   } catch (err) {
     console.error("Image upload error:", err);
@@ -396,60 +403,58 @@ export const deleteImage = async (req, res) => {
  * @swagger
  * /blogs/create:
  *   post:
- *     summary: Create a new blog
+ *     summary: Create a new blog with multiple images
  *     tags:
  *       - Blogs
  *     security:
  *       - bearerAuth: []
  *     consumes:
  *       - multipart/form-data
- *     parameters:
- *       - in: formData
- *         name: title
- *         required: true
- *         schema:
- *           type: string
- *         description: Title of the blog
- *       - in: formData
- *         name: slug
- *         required: true
- *         schema:
- *           type: string
- *         description: URL-friendly slug for the blog
- *       - in: formData
- *         name: content
- *         required: true
- *         schema:
- *           type: string
- *         description: Main content of the blog
- *       - in: formData
- *         name: excerpt
- *         schema:
- *           type: string
- *         description: Short summary or excerpt of the blog
- *       - in: formData
- *         name: published_at
- *         schema:
- *           type: string
- *           format: date-time
- *         description: Optional published date/time (ISO format)
- *       - in: formData
- *         name: meta_title
- *         schema:
- *           type: string
- *         description: SEO meta title
- *       - in: formData
- *         name: meta_description
- *         schema:
- *           type: string
- *         description: SEO meta description
- *       - in: formData
- *         name: file
- *         type: file
- *         description: Optional featured image file upload
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Title of the blog
+ *                 example: "My First Blog"
+ *               slug:
+ *                 type: string
+ *                 description: URL-friendly slug for the blog
+ *                 example: "my-first-blog"
+ *               content:
+ *                 type: string
+ *                 description: Main content of the blog
+ *                 example: "This is the main content of the blog..."
+ *               excerpt:
+ *                 type: string
+ *                 description: Short summary or excerpt of the blog
+ *                 example: "This is a short excerpt..."
+ *               published_at:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Optional published date/time (ISO format)
+ *                 example: "2025-09-05T10:30:00Z"
+ *               meta_title:
+ *                 type: string
+ *                 description: SEO meta title
+ *                 example: "Best Blog About Tech"
+ *               meta_description:
+ *                 type: string
+ *                 description: SEO meta description
+ *                 example: "This blog explains tech in detail"
+ *               images:
+ *                 type: array
+ *                 description: Multiple images to upload
+ *                 items:
+ *                   type: string
+ *                   format: binary
  *     responses:
  *       201:
- *         description: Blog created successfully
+ *         description: Blog created successfully with images
  *         content:
  *           application/json:
  *             schema:
@@ -457,13 +462,10 @@ export const deleteImage = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "✅ Blog created successfully"
+ *                   example: "✅ Blog created successfully with images"
  *                 blog_id:
  *                   type: integer
  *                   example: 123
- *                 featured_image_url:
- *                   type: string
- *                   example: "https://res.cloudinary.com/.../image.jpg"
  *       400:
  *         description: Missing required fields
  *         content:
@@ -489,7 +491,11 @@ export const deleteImage = async (req, res) => {
  *                   example: "Detailed error message"
  */
 
+// Create Blog with multiple images
 export const createBlog = async (req, res) => {
+  const connection = await db.getConnection();
+  await connection.beginTransaction();
+
   try {
     const {
       title,
@@ -499,8 +505,6 @@ export const createBlog = async (req, res) => {
       published_at,
       meta_title,
       meta_description,
-      featured_image_url,
-      featured_image_public_id,
     } = req.body;
 
     if (!title || !slug || !content) {
@@ -510,10 +514,12 @@ export const createBlog = async (req, res) => {
     }
 
     const hasPublishedAt = published_at && published_at.trim() !== "";
+
+    // Insert Blog
     const query = `
       INSERT INTO blogs 
-      (title, slug, content, excerpt, ${hasPublishedAt ? "published_at, " : ""}featured_image_url, featured_image_public_id, meta_title, meta_description)
-      VALUES (?, ?, ?, ?, ${hasPublishedAt ? "?, " : ""}?, ?, ?, ?)
+      (title, slug, content, excerpt, ${hasPublishedAt ? "published_at, " : ""}meta_title, meta_description, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ${hasPublishedAt ? "?, " : ""}?, ?, NOW(), NOW())
     `;
 
     const values = [
@@ -524,26 +530,53 @@ export const createBlog = async (req, res) => {
       ...(hasPublishedAt
         ? [new Date(published_at).toISOString().slice(0, 19).replace("T", " ")]
         : []),
-      featured_image_url || "",
-      featured_image_public_id || "",
       meta_title || "",
       meta_description || "",
     ];
 
-    const [result] = await db.query(query, values);
+    const [result] = await connection.query(query, values);
+    const blogId = result.insertId;
+
+    // Upload images to Cloudinary and insert into blog_images
+    if (req.files && req.files.length > 0) {
+      let position = 1;
+
+      for (const file of req.files) {
+        const uploadResult = await cloudinary.uploader.upload_stream(
+          {
+            folder: "blogs",
+          },
+          async (error, result) => {
+            if (error) throw error;
+
+            await connection.query(
+              "INSERT INTO blog_images (blog_id, image_url, image_public_id, position) VALUES (?, ?, ?, ?)",
+              [blogId, result.secure_url, result.public_id, position++]
+            );
+          }
+        );
+
+        // Write buffer to Cloudinary stream
+        const stream = uploadResult;
+        stream.end(file.buffer);
+      }
+    }
+
+    await connection.commit();
 
     return res.status(201).json({
-      message: "✅ Blog created successfully",
-      blog_id: result.insertId,
-      featured_image_url,
-      featured_image_public_id,
+      message: "✅ Blog created successfully with images",
+      blog_id: blogId,
     });
   } catch (err) {
+    await connection.rollback();
     console.error("Unhandled Server Error:", err);
     return res.status(500).json({
       error: "Something went wrong on the server",
       details: err.message,
     });
+  } finally {
+    connection.release();
   }
 };
 
