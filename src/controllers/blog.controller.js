@@ -18,21 +18,49 @@ import streamifier from 'streamifier';
 
 export const getAllBlogs = async (req, res) => {
   try {
-    const [results] = await db.query('SELECT * FROM blogs ORDER BY published_at DESC');
+    // Fetch all blogs
+    const [blogs] = await db.query(
+      `SELECT * FROM blogs ORDER BY published_at DESC`
+    );
 
-    if (results.length === 0) {
+    if (blogs.length === 0) {
       return res.status(200).json({
-        message: 'No blogs available at the moment.',
+        message: "No blogs available at the moment.",
         blogs: [],
       });
     }
 
-    res.status(200).json({ blogs: results });
+    // Get all images for these blogs
+    const blogIds = blogs.map((b) => b.id);
+    const [images] = await db.query(
+      `SELECT * FROM blog_images WHERE blog_id IN (?) ORDER BY position ASC`,
+      [blogIds]
+    );
+
+    // Group images by blog_id
+    const imagesByBlog = images.reduce((acc, img) => {
+      if (!acc[img.blog_id]) acc[img.blog_id] = [];
+      acc[img.blog_id].push({
+        id: img.id,
+        url: img.image_url,
+        public_id: img.image_public_id,
+        position: img.position,
+      });
+      return acc;
+    }, {});
+
+    // Attach images to blogs
+    const blogsWithImages = blogs.map((blog) => ({
+      ...blog,
+      images: imagesByBlog[blog.id] || [],
+    }));
+
+    res.status(200).json({ blogs: blogsWithImages });
   } catch (err) {
+    console.error("Error fetching blogs:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
 
 
 /**
@@ -202,11 +230,11 @@ export const getBlogBySlug = (req, res) => {
  *                   example: Duplicate entry 'slug' for key 'blogs.slug'
  */
 
-export const streamUpload = (buffer) => {
+const streamUpload = (buffer) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      // { folder: "medicaps/blogs" },
-            { folder: "testing" },
+      // { folder: "medicaps/blogs" }, // 👈 adjust folder if needed
+      { folder: "testing" }, // 👈 adjust folder if needed
 
       (error, result) => {
         if (result) resolve(result);
@@ -218,85 +246,18 @@ export const streamUpload = (buffer) => {
 };
 
 
-/**
- * @swagger
- * /images/upload:
- *   post:
- *     summary: Upload an image to Cloudinary
- *     tags:
- *       - Images
- *     consumes:
- *       - multipart/form-data
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *                 description: Image file to upload
- *     responses:
- *       200:
- *         description: Image uploaded successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: ✅ Image uploaded successfully
- *                 url:
- *                   type: string
- *                   example: https://res.cloudinary.com/.../image.jpg
- *                 public_id:
- *                   type: string
- *                   example: medicaps/blogs/abc123
- *       400:
- *         description: No image provided
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: No image provided
- *       500:
- *         description: Image upload failed
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Image upload failed
- *                 details:
- *                   type: string
- *                   example: Error message from Cloudinary
- */
-
 export const uploadImage = async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: "No images provided" });
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ error: "No image provided" });
     }
 
-    // Upload all images in parallel
-    const uploadResults = await Promise.all(
-      req.files.map((file) => streamUpload(file.buffer))
-    );
+    const result = await streamUpload(req.file.buffer);
 
     return res.status(200).json({
-      message: "✅ Images uploaded successfully",
-      images: uploadResults.map((img) => ({
-        url: img.secure_url,
-        public_id: img.public_id,
-      })),
+      message: "✅ Image uploaded successfully",
+      url: result.secure_url,
+      public_id: result.public_id,
     });
   } catch (err) {
     console.error("Image upload error:", err);
@@ -307,154 +268,163 @@ export const uploadImage = async (req, res) => {
   }
 };
 
-
-/**
- * @swagger
- * /images/delete:
- *   delete:
- *     summary: Delete an uploaded image from Cloudinary
- *     tags:
- *       - Images
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               public_id:
- *                 type: string
- *                 description: Public ID of the image to delete
- *                 example: medicaps/blogs/abc123
- *     responses:
- *       200:
- *         description: Image deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: 🗑️ Image deleted successfully
- *                 result:
- *                   type: object
- *                   example: { "result": "ok" }
- *       400:
- *         description: Failed to delete image / public_id not provided
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: public_id is required
- *                 details:
- *                   type: string
- *                   example: Failed to delete image
- *       500:
- *         description: Image deletion failed due to server error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Image deletion failed
- *                 details:
- *                   type: string
- *                   example: Error message from Cloudinary
- */
-
-export const deleteImage = async (req, res) => {
+export const uploadMultipleImages = async (req, res) => {
   try {
-    const { public_id } = req.body;
-
-    if (!public_id) {
-      return res.status(400).json({ error: "public_id is required" });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: "No images provided" });
     }
 
-    const result = await cloudinary.uploader.destroy(public_id);
-
-    if (result.result !== "ok") {
-      return res.status(400).json({
-        error: "Failed to delete image",
-        details: result,
-      });
-    }
+    const uploadResults = await Promise.all(
+      req.files.map((file) => streamUpload(file.buffer))
+    );
 
     return res.status(200).json({
-      message: "🗑️ Image deleted successfully",
-      result,
+      message: "✅ Images uploaded successfully",
+      images: uploadResults.map((r) => ({
+        url: r.secure_url,
+        public_id: r.public_id,
+      })),
     });
   } catch (err) {
-    console.error("Delete image error:", err);
+    console.error("Multiple image upload error:", err);
     return res.status(500).json({
-      error: "Image deletion failed",
+      error: "Multiple image upload failed",
       details: err.message,
     });
   }
 };
+
+export const deleteFeaturedImage = async (req, res) => {
+  try {
+    const { blogId } = req.params;
+
+    const [rows] = await db.query(
+      "SELECT featured_image_public_id FROM blogs WHERE id = ?",
+      [blogId]
+    );
+
+    if (rows.length === 0)
+      return res.status(404).json({ error: "Blog not found" });
+
+    const publicId = rows[0].featured_image_public_id;
+    if (!publicId)
+      return res.status(400).json({ error: "No featured image to delete" });
+
+    await cloudinary.uploader.destroy(publicId);
+
+    await db.query(
+      "UPDATE blogs SET featured_image_url = NULL, featured_image_public_id = NULL WHERE id = ?",
+      [blogId]
+    );
+
+    return res.json({ message: "✅ Featured image deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting featured image:", error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+
+// Delete all blog images using blogId
+export const deleteAllBlogImages = async (req, res) => {
+  try {
+    const { blogId } = req.params;
+
+    // 1. Get all images for this blog
+    const [images] = await db.query(
+      "SELECT image_public_id FROM blog_images WHERE blog_id = ?",
+      [blogId]
+    );
+
+    if (!images || images.length === 0) {
+      return res.status(404).json({ error: "No images found for this blog" });
+    }
+
+    // 2. Delete all images from Cloudinary
+    const deletePromises = images.map((img) =>
+      cloudinary.uploader.destroy(img.image_public_id)
+    );
+
+    const results = await Promise.all(deletePromises);
+
+    // Optional: log Cloudinary deletion results
+    results.forEach((r, i) => {
+      if (r.result !== "ok" && r.result !== "not found") {
+        console.warn(`Failed to delete image ${images[i].image_public_id}`, r);
+      }
+    });
+
+    // 3. Delete from database
+    await db.query("DELETE FROM blog_images WHERE blog_id = ?", [blogId]);
+
+    return res.json({ message: "✅ All blog images deleted successfully" });
+  } catch (error) {
+    console.error("Delete blog images error:", error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+
 
 
 /**
  * @swagger
  * /blogs/create:
  *   post:
- *     summary: Create a new blog with multiple images
+ *     summary: Create a new blog
  *     tags:
  *       - Blogs
  *     security:
  *       - bearerAuth: []
  *     consumes:
  *       - multipart/form-data
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *                 description: Title of the blog
- *                 example: "My First Blog"
- *               slug:
- *                 type: string
- *                 description: URL-friendly slug for the blog
- *                 example: "my-first-blog"
- *               content:
- *                 type: string
- *                 description: Main content of the blog
- *                 example: "This is the main content of the blog..."
- *               excerpt:
- *                 type: string
- *                 description: Short summary or excerpt of the blog
- *                 example: "This is a short excerpt..."
- *               published_at:
- *                 type: string
- *                 format: date-time
- *                 description: Optional published date/time (ISO format)
- *                 example: "2025-09-05T10:30:00Z"
- *               meta_title:
- *                 type: string
- *                 description: SEO meta title
- *                 example: "Best Blog About Tech"
- *               meta_description:
- *                 type: string
- *                 description: SEO meta description
- *                 example: "This blog explains tech in detail"
- *               images:
- *                 type: array
- *                 description: Multiple images to upload
- *                 items:
- *                   type: string
- *                   format: binary
+ *     parameters:
+ *       - in: formData
+ *         name: title
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Title of the blog
+ *       - in: formData
+ *         name: slug
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: URL-friendly slug for the blog
+ *       - in: formData
+ *         name: content
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Main content of the blog
+ *       - in: formData
+ *         name: excerpt
+ *         schema:
+ *           type: string
+ *         description: Short summary or excerpt of the blog
+ *       - in: formData
+ *         name: published_at
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Optional published date/time (ISO format)
+ *       - in: formData
+ *         name: meta_title
+ *         schema:
+ *           type: string
+ *         description: SEO meta title
+ *       - in: formData
+ *         name: meta_description
+ *         schema:
+ *           type: string
+ *         description: SEO meta description
+ *       - in: formData
+ *         name: file
+ *         type: file
+ *         description: Optional featured image file upload
  *     responses:
  *       201:
- *         description: Blog created successfully with images
+ *         description: Blog created successfully
  *         content:
  *           application/json:
  *             schema:
@@ -462,10 +432,13 @@ export const deleteImage = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "✅ Blog created successfully with images"
+ *                   example: "✅ Blog created successfully"
  *                 blog_id:
  *                   type: integer
  *                   example: 123
+ *                 featured_image_url:
+ *                   type: string
+ *                   example: "https://res.cloudinary.com/.../image.jpg"
  *       400:
  *         description: Missing required fields
  *         content:
@@ -491,7 +464,7 @@ export const deleteImage = async (req, res) => {
  *                   example: "Detailed error message"
  */
 
-// Create Blog with multiple images
+// Create blog with multiple images
 export const createBlog = async (req, res) => {
   const connection = await db.getConnection();
   await connection.beginTransaction();
@@ -505,7 +478,18 @@ export const createBlog = async (req, res) => {
       published_at,
       meta_title,
       meta_description,
+      featured_image_url,
+      featured_image_public_id,
     } = req.body;
+
+    // ✅ images can come from req.body (already uploaded to Cloudinary)
+    let images = [];
+    if (req.body.images) {
+      // If sent as JSON string
+      images = typeof req.body.images === "string"
+        ? JSON.parse(req.body.images)
+        : req.body.images;
+    }
 
     if (!title || !slug || !content) {
       return res.status(400).json({
@@ -515,14 +499,13 @@ export const createBlog = async (req, res) => {
 
     const hasPublishedAt = published_at && published_at.trim() !== "";
 
-    // Insert Blog
-    const query = `
+    const blogQuery = `
       INSERT INTO blogs 
-      (title, slug, content, excerpt, ${hasPublishedAt ? "published_at, " : ""}meta_title, meta_description, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ${hasPublishedAt ? "?, " : ""}?, ?, NOW(), NOW())
+      (title, slug, content, excerpt, ${hasPublishedAt ? "published_at, " : ""}featured_image_url, featured_image_public_id, meta_title, meta_description)
+      VALUES (?, ?, ?, ?, ${hasPublishedAt ? "?, " : ""}?, ?, ?, ?)
     `;
 
-    const values = [
+    const blogValues = [
       title,
       slug,
       content,
@@ -530,35 +513,24 @@ export const createBlog = async (req, res) => {
       ...(hasPublishedAt
         ? [new Date(published_at).toISOString().slice(0, 19).replace("T", " ")]
         : []),
+      featured_image_url || "",
+      featured_image_public_id || "",
       meta_title || "",
       meta_description || "",
     ];
 
-    const [result] = await connection.query(query, values);
+    const [result] = await connection.query(blogQuery, blogValues);
     const blogId = result.insertId;
 
-    // Upload images to Cloudinary and insert into blog_images
-    if (req.files && req.files.length > 0) {
-      let position = 1;
-
-      for (const file of req.files) {
-        const uploadResult = await cloudinary.uploader.upload_stream(
-          {
-            folder: "blogs",
-          },
-          async (error, result) => {
-            if (error) throw error;
-
-            await connection.query(
-              "INSERT INTO blog_images (blog_id, image_url, image_public_id, position) VALUES (?, ?, ?, ?)",
-              [blogId, result.secure_url, result.public_id, position++]
-            );
-          }
+    // ✅ Insert uploaded image URLs into blog_images table
+    if (images.length > 0) {
+      for (let i = 0; i < images.length; i++) {
+        const { url, public_id } = images[i];
+        await connection.query(
+          `INSERT INTO blog_images (blog_id, image_url, image_public_id, position, created_at)
+           VALUES (?, ?, ?, ?, NOW())`,
+          [blogId, url, public_id, i + 1]
         );
-
-        // Write buffer to Cloudinary stream
-        const stream = uploadResult;
-        stream.end(file.buffer);
       }
     }
 
@@ -567,6 +539,7 @@ export const createBlog = async (req, res) => {
     return res.status(201).json({
       message: "✅ Blog created successfully with images",
       blog_id: blogId,
+      images,
     });
   } catch (err) {
     await connection.rollback();
@@ -701,9 +674,11 @@ export const createBlog = async (req, res) => {
 
 export const updateBlog = async (req, res) => {
   const { id } = req.params;
+  const connection = await db.getConnection();
+  await connection.beginTransaction();
 
   try {
-    const [rows] = await db.query(`SELECT * FROM blogs WHERE id = ?`, [id]);
+    const [rows] = await connection.query(`SELECT * FROM blogs WHERE id = ?`, [id]);
     if (rows.length === 0) {
       return res.status(404).json({ error: "Blog not found" });
     }
@@ -712,6 +687,7 @@ export const updateBlog = async (req, res) => {
     let oldImagePublicId = null;
     let cloudinaryDeleteResult = null;
 
+    // --- Update blog main fields ---
     const updatableFields = [
       "title",
       "slug",
@@ -728,83 +704,78 @@ export const updateBlog = async (req, res) => {
     const values = [];
 
     for (const field of updatableFields) {
-      // ✅ Special rule for "content"
-      if (field === "content") {
-        if (
-          req.body.hasOwnProperty("content") &&
-          req.body.content !== null &&
-          req.body.content !== undefined &&
-          req.body.content.trim() !== ""
-        ) {
-          // only update if non-empty
-          fieldsToUpdate.push(`${field} = ?`);
-          values.push(req.body.content);
-        }
-        continue; // skip updating if empty or missing
-      }
-
-      // ✅ Other fields
-      if (!req.body.hasOwnProperty(field)) {
-        continue; // skip if not in request
-      }
+      if (!req.body.hasOwnProperty(field)) continue;
 
       const value = req.body[field];
 
-      if (field === "published_at") {
-        try {
-          const dateObj = new Date(value);
-          fieldsToUpdate.push(`${field} = ?`);
-          values.push(dateObj.toISOString().slice(0, 19).replace("T", " "));
-        } catch {
-          return res.status(400).json({ error: "Invalid published_at format" });
-        }
-      } else {
-        if (
-          field === "featured_image_public_id" &&
-          value !== existing.featured_image_public_id
-        ) {
-          oldImagePublicId = existing.featured_image_public_id;
-        }
+      if (field === "content" && (!value || value.trim() === "")) continue;
 
+      if (field === "published_at") {
+        const dateObj = new Date(value);
+        fieldsToUpdate.push(`${field} = ?`);
+        values.push(dateObj.toISOString().slice(0, 19).replace("T", " "));
+      } else if (field === "featured_image_public_id" && value !== existing.featured_image_public_id) {
+        oldImagePublicId = existing.featured_image_public_id;
+        fieldsToUpdate.push(`${field} = ?`);
+        values.push(value);
+      } else {
         fieldsToUpdate.push(`${field} = ?`);
         values.push(value);
       }
     }
 
-    if (fieldsToUpdate.length === 0) {
-      return res.json({ message: "⚠️ No fields updated", blog: existing });
+    if (fieldsToUpdate.length > 0) {
+      const query = `UPDATE blogs SET ${fieldsToUpdate.join(", ")} WHERE id = ?`;
+      values.push(id);
+      await connection.query(query, values);
     }
 
-    const query = `
-      UPDATE blogs 
-      SET ${fieldsToUpdate.join(", ")} 
-      WHERE id = ?
-    `;
+    // --- Handle multiple images ---
+    let newImages = [];
+    if (req.body.images) {
+      newImages = typeof req.body.images === "string" ? JSON.parse(req.body.images) : req.body.images;
 
-    values.push(id);
-    await db.query(query, values);
+      // Optional: delete old images for this blog first (if replacing all)
+      await connection.query(`DELETE FROM blog_images WHERE blog_id = ?`, [id]);
 
-    // ✅ Delete old image if replaced
+      for (let i = 0; i < newImages.length; i++) {
+        const { url, public_id } = newImages[i];
+        await connection.query(
+          `INSERT INTO blog_images (blog_id, image_url, image_public_id, position, created_at) VALUES (?, ?, ?, ?, NOW())`,
+          [id, url, public_id, i + 1]
+        );
+      }
+    }
+
+    // --- Delete old featured image from Cloudinary if replaced ---
     if (oldImagePublicId) {
       try {
         cloudinaryDeleteResult = await cloudinary.uploader.destroy(oldImagePublicId);
-        console.log("🗑️ Old image deleted:", cloudinaryDeleteResult);
+        console.log("🗑️ Old featured image deleted:", cloudinaryDeleteResult);
       } catch (err) {
-        console.error("Failed to delete old image:", err.message);
+        console.error("Failed to delete old featured image:", err.message);
       }
     }
+
+    await connection.commit();
 
     return res.json({
       message: "✅ Blog updated successfully",
       updatedFields: fieldsToUpdate.map(f => f.split(" = ")[0]),
       deletedImage: oldImagePublicId || null,
       deleteResult: cloudinaryDeleteResult || null,
+      newImages,
     });
+
   } catch (err) {
+    await connection.rollback();
     console.error("Update Error:", err);
     return res.status(500).json({ error: "Server error", details: err.message });
+  } finally {
+    connection.release();
   }
 };
+
 
 
 
@@ -1707,19 +1678,38 @@ export const getBlogById = async (req, res) => {
     return res.status(400).json({ error: "Blog ID is required in the URL" });
   }
 
-  try {
-    const [rows] = await db.query(`SELECT * FROM blogs WHERE id = ?`, [id]);
+  const connection = await db.getConnection();
 
-    if (rows.length === 0) {
+  try {
+    // Fetch blog main data
+    const [blogs] = await connection.query(`SELECT * FROM blogs WHERE id = ?`, [id]);
+    if (blogs.length === 0) {
       return res.status(404).json({ error: "Blog not found" });
     }
+    const blog = blogs[0];
 
-    return res.json(rows[0]);
+    // Fetch all images for this blog
+    const [images] = await connection.query(
+      `SELECT id, image_url AS url, image_public_id AS public_id, position 
+       FROM blog_images 
+       WHERE blog_id = ? 
+       ORDER BY position ASC`,
+      [id]
+    );
+
+    // Return blog data with images array
+    return res.json({
+      ...blog,
+      images, // array of { url, public_id, position }
+    });
   } catch (err) {
     console.error("Fetch Blog Error:", err);
     return res.status(500).json({ error: "Server error", details: err.message });
+  } finally {
+    connection.release();
   }
 };
+
 
 
 
