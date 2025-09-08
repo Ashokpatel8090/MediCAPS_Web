@@ -3,6 +3,7 @@ import { authorizeAdmin, verifyToken } from '../middleware/authMiddleware.js';
 import { getVerifiedDoctorDetailsById, getVerifiedDoctors, getVerifiedDoctorsDetails, handleActivateUser, handleDeactivateUser } from '../controllers/user.controller.js';
 import { getAllDoctorsWithPracticeDetails, getAllHospitals, getAllPatients, getClinicById, getDoctorRatingsAndReviews  } from '../controllers/hospitals.controller.js';
 import { getAllChannelPartners, getAllReferrals, getAllUsersWithContactsInfo, getUserWithContacts } from '../controllers/referal.controller.js';
+import { getAllMilletProducts, getMilletProductById } from '../controllers/millet.controller.js';
 
 const router = express.Router();
 
@@ -26,5 +27,9 @@ router.get("/admin/refrals-details", getAllReferrals);
 
 router.get("/admin/user-contacts/:userId", getUserWithContacts);
 router.get("/admin/user-contacts", getAllUsersWithContactsInfo);
+
+
+router.get("/millets/products", getAllMilletProducts);
+router.get("/millets/products/:id", getMilletProductById);
 
 export default router;

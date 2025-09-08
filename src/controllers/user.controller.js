@@ -441,6 +441,7 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT 
+        d.id AS doctor_id,
         d.user_id AS user_id,
         u.full_name AS name,
         u.email,
@@ -452,23 +453,34 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
         d.total_reviews,
         d.is_verified,
         d.profile_url,
-        d.profile_img_public_id,
-        a.street AS address,
-        a.postal_code,
-        c.name AS city,
-        s.name AS state,
-        cn.name AS country
+        d.profile_img_public_id
       FROM doctors d
       JOIN users u ON d.user_id = u.id
-      LEFT JOIN addresses a ON a.id = d.address_id
-      LEFT JOIN states s ON a.state_id = s.id
-      LEFT JOIN countries cn ON a.country_id = cn.id
-      LEFT JOIN cities c ON a.city_id = c.id
       WHERE d.is_verified = '1' AND d.is_verified IS NOT NULL
     `);
 
     for (const doctor of rows) {
       const doctorId = doctor.doctor_id;
+
+      // Addresses (array)
+      const [addresses] = await db.query(
+        `SELECT 
+          a.id,
+          a.street,
+          a.landmark,
+          a.postal_code,
+          a.address_type,
+          c.name AS city,
+          s.name AS state,
+          cn.name AS country
+         FROM addresses a
+         LEFT JOIN cities c ON a.city_id = c.id
+         LEFT JOIN states s ON a.state_id = s.id
+         LEFT JOIN countries cn ON a.country_id = cn.id
+         WHERE a.user_id = ?`,
+        [doctor.user_id]
+      );
+      doctor.addresses = addresses;
 
       // Qualifications
       const [qualifications] = await db.query(
@@ -478,7 +490,7 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
          WHERE doctor_id = ?`,
         [doctorId]
       );
-      doctor.qualifications = qualifications.map(q => q.qualification).join('; ');
+      doctor.qualifications = qualifications.map(q => q.qualification);
 
       // Schedules
       const [schedules] = await db.query(
@@ -544,10 +556,12 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
 
     res.status(200).json(rows);
   } catch (error) {
-    console.error('❌ Error fetching verified doctors:', error.message);
-    res.status(500).json({ error: 'Server error' });
+    console.error("❌ Error fetching verified doctors:", error.message);
+    res.status(500).json({ error: "Server error" });
   }
 };
+
+
 
 
 
@@ -555,11 +569,12 @@ export const getVerifiedDoctorDetailsById = async (req, res) => {
   try {
     const { id } = req.params; // this is user_id
 
-    // Fetch main doctor data
-    const [rows] = await db.query(`
+    // Fetch main doctor data (without single address join)
+    const [rows] = await db.query(
+      `
       SELECT 
-        d.id AS doctor_id,        -- ✅ keep actual doctor table id
-        d.user_id AS user_id,     -- ✅ link to user
+        d.id AS doctor_id,        -- doctor table id
+        d.user_id AS user_id,     -- link to user
         u.full_name AS name,
         u.email,
         u.phone,
@@ -570,29 +585,42 @@ export const getVerifiedDoctorDetailsById = async (req, res) => {
         d.total_reviews,
         d.is_verified,
         d.profile_url,
-        d.profile_img_public_id,
-        a.street AS address,
-        a.postal_code,
-        c.name AS city,
-        s.name AS state,
-        cn.name AS country
+        d.profile_img_public_id
       FROM doctors d
       JOIN users u ON d.user_id = u.id
-      LEFT JOIN addresses a ON a.id = d.address_id
-      LEFT JOIN states s ON a.state_id = s.id
-      LEFT JOIN countries cn ON a.country_id = cn.id
-      LEFT JOIN cities c ON a.city_id = c.id
       WHERE d.is_verified = '1' 
         AND d.is_verified IS NOT NULL
-        AND d.user_id = ?         -- ✅ filter by user_id
-    `, [id]);
+        AND d.user_id = ?
+      `,
+      [id]
+    );
 
     if (!rows.length) {
       return res.status(404).json({ error: "Doctor not found" });
     }
 
     const doctor = rows[0];
-    const doctorId = doctor.doctor_id; // ✅ now exists
+    const doctorId = doctor.doctor_id;
+
+    // Addresses (array)
+    const [addresses] = await db.query(
+      `SELECT 
+          a.id,
+          a.street,
+          a.landmark,
+          a.postal_code,
+          a.address_type,
+          c.name AS city,
+          s.name AS state,
+          cn.name AS country
+       FROM addresses a
+       LEFT JOIN cities c ON a.city_id = c.id
+       LEFT JOIN states s ON a.state_id = s.id
+       LEFT JOIN countries cn ON a.country_id = cn.id
+       WHERE a.user_id = ?`,
+      [doctor.user_id]
+    );
+    doctor.addresses = addresses;
 
     // Qualifications
     const [qualifications] = await db.query(
@@ -602,7 +630,7 @@ export const getVerifiedDoctorDetailsById = async (req, res) => {
        WHERE doctor_id = ?`,
       [doctorId]
     );
-    doctor.qualifications = qualifications.map(q => q.qualification).join('; ');
+    doctor.qualifications = qualifications.map((q) => q.qualification);
 
     // Schedules
     const [schedules] = await db.query(
@@ -671,6 +699,7 @@ export const getVerifiedDoctorDetailsById = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 
 
