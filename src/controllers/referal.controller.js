@@ -467,3 +467,49 @@ export const getAllUsersWithContactsInfo = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+
+
+
+// Get referrals for logged-in user
+export const getUserReferrals = async (req, res) => {
+  try {
+    const userId = req.user?.sub; // ✅ extracted from JWT middleware
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized. Please login." });
+    }
+
+    const [rows] = await db.query(
+      `SELECT 
+         r.id,
+         r.referrer_id,
+         referrer.full_name AS referrer_name,
+         referrer.email AS referrer_email,
+         r.referee_id,
+         referee.full_name AS referee_name,
+         referee.email AS referee_email,
+         r.referral_code,
+         r.status,
+         r.reward_granted,
+         r.created_at,
+         r.accepted_at,
+         r.completed_at
+       FROM referrals r
+       LEFT JOIN users referrer ON r.referrer_id = referrer.id
+       LEFT JOIN users referee ON r.referee_id = referee.id
+       WHERE r.referrer_id = ? OR r.referee_id = ?
+       ORDER BY r.created_at DESC`,
+      [userId, userId]
+    );
+
+    res.status(200).json({
+      success: true,
+      count: rows.length,
+      referrals: rows,
+    });
+  } catch (error) {
+    console.error("Error fetching user referrals:", error.message);
+    res.status(500).json({ error: "Server error" });
+  }
+};
