@@ -468,7 +468,15 @@ export const getAllUsersWithContactsInfo = async (req, res) => {
   }
 };
 
-
+export const getTotalContacts = async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT COUNT(*) AS total FROM user_contacts");
+    res.json({ totalContacts: rows[0].total });
+  } catch (error) {
+    console.error("Error fetching total contacts:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
 
 // Get referrals for logged-in user

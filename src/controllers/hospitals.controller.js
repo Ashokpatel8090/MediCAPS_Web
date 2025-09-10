@@ -547,7 +547,7 @@ export async function getAllDoctorsWithPracticeDetails(req, res) {
  */
 export const getAllPatients = async (req, res) => {
   try {
-    const { full_name, email, gender, specialization_name } = req.query;
+    const { full_name, email, gender } = req.query;
 
     // Base SQL query
     let baseQuery = `
@@ -562,6 +562,25 @@ export const getAllPatients = async (req, res) => {
         p.blood_group,
         p.profile_image_url,
         p.created_at,
+
+        -- Address
+        (
+          SELECT JSON_ARRAYAGG(
+            JSON_OBJECT(
+              'id', a.id,
+              'street', a.street,
+              'landmark', a.landmark,
+              'city_id', a.city_id,
+              'state_id', a.state_id,
+              'country_id', a.country_id,
+              'postal_code', a.postal_code,
+              'address_type', a.address_type,
+              'created_at', a.created_at
+            )
+          )
+          FROM addresses a
+          WHERE a.user_id = u.id
+        ) AS addresses,
 
         -- Documents
         (
@@ -643,7 +662,7 @@ export const getAllPatients = async (req, res) => {
       baseQuery += ' WHERE ' + whereClauses.join(' AND ');
     }
 
-    baseQuery += ' ORDER BY p.created_at DESC';
+    baseQuery += ' ORDER BY p.created_at DESC'; // latest patient first
 
     const [rows] = await db.query(baseQuery, params);
 

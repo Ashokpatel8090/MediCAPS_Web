@@ -233,8 +233,8 @@ export const getBlogBySlug = (req, res) => {
 const streamUpload = (buffer) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      // { folder: "medicaps/blogs" }, // 👈 adjust folder if needed
-      { folder: "testing" }, // 👈 adjust folder if needed
+      { folder: "medicaps/blogs" }, // 👈 adjust folder if needed
+      // { folder: "testing" }, // 👈 adjust folder if needed
 
       (error, result) => {
         if (result) resolve(result);

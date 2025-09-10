@@ -19,7 +19,8 @@ import {
   getAllReferrals, 
   getAllUsersWithContactsInfo, 
   getUserWithContacts,
-  getUserReferrals   // ✅ import new controller
+  getUserReferrals,   // ✅ import new controller
+  getTotalContacts
 } from '../controllers/referal.controller.js';
 import { 
   getAllMilletProducts, 
@@ -50,6 +51,8 @@ router.get("/admin/refrals-details", getAllReferrals);
 // ---------------- Admin: User Contacts ----------------
 router.get("/admin/user-contacts/:userId", getUserWithContacts);
 router.get("/admin/user-contacts", getAllUsersWithContactsInfo);
+router.get("/admin/user/contact-count", getTotalContacts);
+
 
 // ---------------- Millets ----------------
 router.get("/millets/products", getAllMilletProducts);
