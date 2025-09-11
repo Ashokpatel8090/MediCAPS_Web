@@ -562,9 +562,6 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
 };
 
 
-
-
-
 export const getVerifiedDoctorDetailsById = async (req, res) => {
   try {
     const { id } = req.params; // this is user_id
@@ -703,6 +700,40 @@ export const getVerifiedDoctorDetailsById = async (req, res) => {
 
 
 
+
+// Get users with addresses, only if role_id = 6
+export const getUsersWithAddresses = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        u.id AS user_id,
+        u.full_name,
+        u.email,
+        u.phone,
+        u.role_id,
+        u.user_type,
+        u.is_active,
+        a.id AS address_id,
+        a.street,
+        a.landmark,
+        a.city_id,
+        a.state_id,
+        a.country_id,
+        a.postal_code,
+        a.address_type,
+        a.created_at
+      FROM users u
+      LEFT JOIN addresses a ON u.id = a.user_id
+      WHERE u.role_id = 6
+    `;
+
+    const [results] = await db.query(query);
+    return res.status(200).json({ success: true, data: results });
+  } catch (error) {
+    console.error("Error fetching users with role_id=6 and addresses:", error);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
 
 
 

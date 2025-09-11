@@ -1,6 +1,7 @@
 import express from 'express';
 import { authorizeAdmin, verifyToken } from '../middleware/authMiddleware.js';
 import { 
+  getUsersWithAddresses,
   getVerifiedDoctorDetailsById, 
   getVerifiedDoctors, 
   getVerifiedDoctorsDetails, 
@@ -58,10 +59,8 @@ router.get("/admin/user/contact-count", getTotalContacts);
 router.get("/millets/products", getAllMilletProducts);
 router.get("/millets/products/:id", getMilletProductById);
 
-
-
-
 // ---------------- Logged-in User Referrals ----------------
-router.get('/admin/logged-referals', verifyToken, getUserReferrals); // ✅ added
+router.get('/admin/logged-referals', verifyToken, getUserReferrals);
+router.get("/admin/nutritionist/information", verifyToken, getUsersWithAddresses);
 
 export default router;
