@@ -699,8 +699,6 @@ export const getVerifiedDoctorDetailsById = async (req, res) => {
 
 
 
-
-
 // Get users with addresses, only if role_id = 6
 export const getUsersWithAddresses = async (req, res) => {
   try {
@@ -734,6 +732,5 @@ export const getUsersWithAddresses = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
-
 
 

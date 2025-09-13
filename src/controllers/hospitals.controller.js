@@ -186,6 +186,7 @@ export const getAllHospitals = async (req, res) => {
  *       500:
  *         description: Server error
  */
+
 export const getClinicById = async (req, res) => {
   const { id } = req.params;
 
@@ -211,7 +212,7 @@ export const getClinicById = async (req, res) => {
 
     res.status(200).json(clinic[0]);
   } catch (error) {
-    console.error("❌ Error fetching clinic by ID:", error.message);
+    console.error("Error fetching clinic by ID:", error.message);
     res.status(500).json({ error: "Server error" });
   }
 };
@@ -553,6 +554,7 @@ export const getAllPatients = async (req, res) => {
     let baseQuery = `
       SELECT
         p.id AS patient_id,
+        u.id AS user_id,               -- Added user_id
         u.full_name,
         u.email,
         u.phone,
@@ -672,8 +674,6 @@ export const getAllPatients = async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
-
-
 
 
 
