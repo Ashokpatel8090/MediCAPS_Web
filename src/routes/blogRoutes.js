@@ -2,8 +2,9 @@ import express from "express";
 import {
   addComment,
   createBlog,
-  deleteUploadedImages,
+  // deleteUploadedImages,
   deleteFeaturedImage,
+  deleteMultipleImages,
   getAllBlogs,
   getBlogById,
   getBlogBySlug,
@@ -15,6 +16,7 @@ import {
   updateBlog,
   uploadImage,
   uploadMultipleImages,
+  // deleteMultipleBlogImages,
 } from "../controllers/blog.controller.js";
 
 import upload from "../middleware/upload.js";
@@ -42,12 +44,24 @@ router.get("/api/blogs/:blogId/likes", verifyToken, getBlogLikes);
 router.post("/api/blogs/:blogId/comments", verifyToken, addComment);
 router.get("/api/blogs/:blogId/comments", getComments);
 
-router.post("/api/images/upload", upload.single("file"), uploadImage);
-router.post("/api/images/upload-multiple", upload.array("files", 10), uploadMultipleImages);
 
 
-router.delete("/api/blogs/:blogId/featured-image", deleteFeaturedImage);
-router.delete("/api/blogs/:blogId/images", deleteUploadedImages);
+router.post("/api/images/upload", upload.single("image"), uploadImage);
+router.delete("/api/images/upload", deleteFeaturedImage);
+router.post("/api/images/upload-multiple", upload.array("images"), uploadMultipleImages);
+router.delete("/api/images/delete-multiple", deleteMultipleImages);
+
+
+
+
+// router.post("/api/images/upload", upload.single("file"), uploadImage);
+// router.post("/api/images/upload-multiple", upload.array("files", 10), uploadMultipleImages);
+
+
+
+// router.delete("/api/blogs/:blogId/featured-image", deleteFeaturedImage);
+// router.delete("/api/blogs/:blogId/featured-image", deleteMultipleBlogImages);
+// router.delete("/api/blogs/:blogId/images", deleteUploadedImages);
 
 
 export default router;
