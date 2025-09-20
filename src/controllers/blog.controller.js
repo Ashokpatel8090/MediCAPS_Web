@@ -318,32 +318,17 @@ const streamUpload = (buffer) => {
 
 
 export const uploadImage = async (req, res) => {
-  const connection = await db.getConnection();
-
   try {
     if (!req.file || !req.file.buffer) {
       return res.status(400).json({ error: "No image provided" });
     }
 
-    const { blog_id } = req.body;
-    if (!blog_id) {
-      return res.status(400).json({ error: "blog_id is required" });
-    }
-
     // 1️⃣ Upload to Cloudinary
     const result = await streamUpload(req.file.buffer);
 
-    // 2️⃣ Update blogs table with image
-    const updateQuery = `
-      UPDATE blogs 
-      SET featured_image_url = ?, featured_image_public_id = ?, updated_at = NOW()
-      WHERE id = ?
-    `;
-    await connection.query(updateQuery, [result.secure_url, result.public_id, blog_id]);
-
+    // 2️⃣ Return uploaded image info (do not update DB yet)
     return res.status(200).json({
-      message: "✅ Blog image uploaded & saved successfully",
-      blog_id,
+      message: "✅ Image uploaded successfully",
       url: result.secure_url,
       public_id: result.public_id,
     });
@@ -353,10 +338,9 @@ export const uploadImage = async (req, res) => {
       error: "Image upload failed",
       details: err.message,
     });
-  } finally {
-    connection.release();
   }
 };
+
 
 
 /**
