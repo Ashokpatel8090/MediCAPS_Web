@@ -63,6 +63,7 @@ export const getAllBlogs = async (req, res) => {
 };
 
 
+
 /**
  * @swagger
  * /blogs/{slug}:
@@ -246,6 +247,7 @@ const streamUpload = (buffer) => {
 };
 
 
+
 export const uploadImage = async (req, res) => {
   try {
     if (!req.file || !req.file.buffer) {
@@ -267,6 +269,8 @@ export const uploadImage = async (req, res) => {
     });
   }
 };
+
+
 
 export const uploadMultipleImages = async (req, res) => {
   try {
@@ -293,6 +297,8 @@ export const uploadMultipleImages = async (req, res) => {
     });
   }
 };
+
+
 
 export const deleteFeaturedImage = async (req, res) => {
   try {
@@ -325,45 +331,41 @@ export const deleteFeaturedImage = async (req, res) => {
 };
 
 
-// Delete all blog images using blogId
-export const deleteAllBlogImages = async (req, res) => {
+
+export const deleteUploadedImages = async (req, res) => {
   try {
-    const { blogId } = req.params;
+    const { publicIds } = req.body; // Expect array of Cloudinary public_ids
 
-    // 1. Get all images for this blog
-    const [images] = await db.query(
-      "SELECT image_public_id FROM blog_images WHERE blog_id = ?",
-      [blogId]
-    );
-
-    if (!images || images.length === 0) {
-      return res.status(404).json({ error: "No images found for this blog" });
+    if (!publicIds || !Array.isArray(publicIds) || publicIds.length === 0) {
+      return res.status(400).json({ error: "No public IDs provided" });
     }
 
-    // 2. Delete all images from Cloudinary
-    const deletePromises = images.map((img) =>
-      cloudinary.uploader.destroy(img.image_public_id)
+    // 1. Delete from Cloudinary
+    const deleteResults = await Promise.all(
+      publicIds.map((id) => cloudinary.uploader.destroy(id))
     );
 
-    const results = await Promise.all(deletePromises);
-
-    // Optional: log Cloudinary deletion results
-    results.forEach((r, i) => {
+    deleteResults.forEach((r, i) => {
       if (r.result !== "ok" && r.result !== "not found") {
-        console.warn(`Failed to delete image ${images[i].image_public_id}`, r);
+        console.warn(`⚠️ Failed to delete image ${publicIds[i]}`, r);
       }
     });
 
-    // 3. Delete from database
-    await db.query("DELETE FROM blog_images WHERE blog_id = ?", [blogId]);
+    // 2. Delete from DB if stored
+    await db.query(
+      "DELETE FROM blog_images WHERE image_public_id IN (?)",
+      [publicIds]
+    );
 
-    return res.json({ message: "✅ All blog images deleted successfully" });
-  } catch (error) {
-    console.error("Delete blog images error:", error);
-    return res.status(500).json({ error: "Server error" });
+    return res.json({
+      message: "✅ Uploaded images deleted successfully",
+      deleted: publicIds.length,
+    });
+  } catch (err) {
+    console.error("Delete uploaded images error:", err);
+    return res.status(500).json({ error: "Server error", details: err.message });
   }
 };
-
 
 
 
@@ -836,8 +838,11 @@ export const deleteBlog = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    // 1️⃣ Get the blog to fetch its image public_id
-    const [blogs] = await connection.query('SELECT featured_image_public_id FROM blogs WHERE id = ?', [id]);
+    // 1️⃣ Get the blog (featured image)
+    const [blogs] = await connection.query(
+      'SELECT featured_image_public_id FROM blogs WHERE id = ?',
+      [id]
+    );
 
     if (blogs.length === 0) {
       await connection.rollback();
@@ -846,23 +851,39 @@ export const deleteBlog = async (req, res) => {
 
     const blog = blogs[0];
 
-    // 2️⃣ Delete the image from Cloudinary if it exists
+    // 2️⃣ Get all additional blog images
+    const [blogImages] = await connection.query(
+      'SELECT image_public_id FROM blog_images WHERE blog_id = ?',
+      [id]
+    );
+
+    // 3️⃣ Delete Cloudinary featured image
     if (blog.featured_image_public_id) {
       try {
-        const cloudResult = await cloudinary.uploader.destroy(blog.featured_image_public_id);
-        console.log('Cloudinary delete result:', cloudResult);
+        await cloudinary.uploader.destroy(blog.featured_image_public_id);
       } catch (cloudErr) {
-        console.error('Cloudinary delete error:', cloudErr);
-        // optionally, continue deleting the blog even if the image deletion fails
+        console.error('Cloudinary delete error (featured):', cloudErr);
       }
     }
 
-    // 3️⃣ Delete related tables
+    // 4️⃣ Delete Cloudinary blog images
+    for (const img of blogImages) {
+      if (img.image_public_id) {
+        try {
+          await cloudinary.uploader.destroy(img.image_public_id);
+        } catch (cloudErr) {
+          console.error('Cloudinary delete error (blog_images):', cloudErr);
+        }
+      }
+    }
+
+    // 5️⃣ Delete related tables first
     await connection.query('DELETE FROM blog_comments WHERE blog_id = ?', [id]);
     await connection.query('DELETE FROM blog_likes WHERE blog_id = ?', [id]);
     await connection.query('DELETE FROM blog_shares WHERE blog_id = ?', [id]);
+    await connection.query('DELETE FROM blog_images WHERE blog_id = ?', [id]);
 
-    // 4️⃣ Delete the blog itself
+    // 6️⃣ Delete the blog itself
     const [result] = await connection.query('DELETE FROM blogs WHERE id = ?', [id]);
 
     if (result.affectedRows === 0) {
@@ -871,7 +892,9 @@ export const deleteBlog = async (req, res) => {
     }
 
     await connection.commit();
-    return res.status(200).json({ message: 'Blog, related data, and image deleted successfully' });
+    return res.status(200).json({
+      message: '✅ Blog, related data, and images deleted successfully'
+    });
 
   } catch (err) {
     await connection.rollback();
@@ -881,6 +904,7 @@ export const deleteBlog = async (req, res) => {
     connection.release();
   }
 };
+
 
 
 
