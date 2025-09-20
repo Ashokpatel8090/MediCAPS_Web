@@ -48,7 +48,7 @@ router.get("/api/blogs/:blogId/comments", getComments);
 
 router.post("/api/images/upload", upload.single("file"), uploadImage);
 router.delete("/api/images/upload", deleteFeaturedImage);
-router.post("/api/images/upload-multiple", upload.array("file"), uploadMultipleImages);
+router.post("/api/images/upload-multiple", upload.array("files", 10), uploadMultipleImages);
 router.delete("/api/images/delete-multiple", deleteMultipleImages);
 
 

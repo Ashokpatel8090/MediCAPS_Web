@@ -139,14 +139,81 @@ export const getAllBlogs = async (req, res) => {
  *                   example: "Internal server error"
  */
 
-export const getBlogBySlug = (req, res) => {
+export const getBlogBySlug = async (req, res) => {
   const { slug } = req.params;
-  db.query('SELECT * FROM blogs WHERE slug = ?', [slug], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (results.length === 0) return res.status(404).json({ message: 'Blog not found' });
-    res.json(results[0]);
-  });
+
+  try {
+    // 1️⃣ Fetch main blog details
+    const [blogs] = await db.query(
+      `SELECT 
+         b.id, b.title, TRIM(b.slug) as slug, b.content, b.excerpt, 
+         b.featured_image_url, b.featured_image_public_id, 
+         b.meta_title, b.meta_description, 
+         b.views_count, b.likes_count, 
+         b.created_at, b.updated_at, b.published_at
+       FROM blogs b
+       WHERE TRIM(b.slug) = ?`,
+      [slug.trim()]
+    );
+
+    if (blogs.length === 0) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    const blog = blogs[0];
+
+    // 2️⃣ Fetch blog images
+    const [images] = await db.query(
+      `SELECT id, image_url as url, image_public_id as public_id, position, created_at
+       FROM blog_images
+       WHERE blog_id = ?
+       ORDER BY position ASC`,
+      [blog.id]
+    );
+
+    // 3️⃣ Fetch comments
+    const [comments] = await db.query(
+      `SELECT id, user_id, comment, created_at
+       FROM blog_comments
+       WHERE blog_id = ?
+       ORDER BY created_at DESC`,
+      [blog.id]
+    );
+
+    // 4️⃣ Fetch likes count (in case likes_count is outdated)
+    const [likes] = await db.query(
+      `SELECT COUNT(*) as totalLikes
+       FROM blog_likes
+       WHERE blog_id = ?`,
+      [blog.id]
+    );
+
+    // 5️⃣ Fetch shares count
+    const [shares] = await db.query(
+      `SELECT COUNT(*) as totalShares
+       FROM blog_shares
+       WHERE blog_id = ?`,
+      [blog.id]
+    );
+
+    // 6️⃣ Build final response object
+    const blogResponse = {
+      ...blog,
+      images,
+      comments,
+      likes_count: likes[0].totalLikes,
+      shares_count: shares[0].totalShares,
+    };
+
+    res.json(blogResponse);
+  } catch (err) {
+    console.error("Error fetching blog by slug:", err);
+    res.status(500).json({ error: err.message });
+  }
 };
+
+
+
 
 
 
@@ -323,10 +390,9 @@ export const uploadImage = async (req, res) => {
       return res.status(400).json({ error: "No image provided" });
     }
 
-    // 1️⃣ Upload to Cloudinary
+    // Upload to Cloudinary
     const result = await streamUpload(req.file.buffer);
 
-    // 2️⃣ Return uploaded image info (do not update DB yet)
     return res.status(200).json({
       message: "✅ Image uploaded successfully",
       url: result.secure_url,
@@ -340,7 +406,6 @@ export const uploadImage = async (req, res) => {
     });
   }
 };
-
 
 
 /**
@@ -419,50 +484,29 @@ export const uploadImage = async (req, res) => {
  */
 
 
+// Upload multiple images
 export const uploadMultipleImages = async (req, res) => {
-  const connection = await db.getConnection();
-
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: "No images provided" });
     }
 
-    const { blog_id } = req.body;
-    if (!blog_id) {
-      return res.status(400).json({ error: "blog_id is required" });
-    }
-
-    // 1️⃣ Upload all images to Cloudinary
-    const uploadResults = await Promise.all(
-      req.files.map((file) => streamUpload(file.buffer))
-    );
-
-    // 2️⃣ Insert each image into blog_images table
-    for (let i = 0; i < uploadResults.length; i++) {
-      const img = uploadResults[i];
-      await connection.query(
-        `INSERT INTO blog_images (blog_id, image_url, image_public_id, position, created_at)
-         VALUES (?, ?, ?, ?, NOW())`,
-        [blog_id, img.secure_url, img.public_id, i + 1]
-      );
+    const uploaded = [];
+    for (const file of req.files) {
+      const result = await streamUpload(file.buffer);
+      uploaded.push({ url: result.secure_url, public_id: result.public_id });
     }
 
     return res.status(200).json({
-      message: "✅ Images uploaded & stored successfully",
-      blog_id,
-      images: uploadResults.map((r) => ({
-        url: r.secure_url,
-        public_id: r.public_id,
-      })),
+      message: "✅ Images uploaded successfully",
+      images: uploaded,
     });
   } catch (err) {
     console.error("Multiple image upload error:", err);
     return res.status(500).json({
-      error: "Multiple image upload failed",
+      error: "Images upload failed",
       details: err.message,
     });
-  } finally {
-    connection.release();
   }
 };
 
@@ -718,25 +762,23 @@ export const createBlog = async (req, res) => {
       featured_image_public_id,
     } = req.body;
 
-    // ✅ images can come from req.body (already uploaded to Cloudinary)
+    // Parse images JSON safely
     let images = [];
     if (req.body.images) {
-      images =
-        typeof req.body.images === "string"
-          ? JSON.parse(req.body.images)
-          : req.body.images;
+      try {
+        images = typeof req.body.images === "string" ? JSON.parse(req.body.images) : req.body.images;
+      } catch {
+        images = [];
+      }
     }
 
-    // ✅ Required field validation
+    // Required fields
     if (!title || !slug || !content) {
-      return res.status(400).json({
-        error: "Title, slug, and content are required fields.",
-      });
+      return res.status(400).json({ error: "Title, slug, and content are required." });
     }
 
-    const hasPublishedAt = published_at && published_at.trim() !== "";
+    const hasPublishedAt = published_at && !isNaN(new Date(published_at).getTime());
 
-    // ✅ Insert into blogs table
     const blogQuery = `
       INSERT INTO blogs 
       (title, slug, content, excerpt, ${hasPublishedAt ? "published_at, " : ""}featured_image_url, featured_image_public_id, meta_title, meta_description, created_at, updated_at)
@@ -748,9 +790,7 @@ export const createBlog = async (req, res) => {
       slug,
       content,
       excerpt || "",
-      ...(hasPublishedAt
-        ? [new Date(published_at).toISOString().slice(0, 19).replace("T", " ")]
-        : []),
+      ...(hasPublishedAt ? [new Date(published_at).toISOString().slice(0, 19).replace("T", " ")] : []),
       featured_image_url || "",
       featured_image_public_id || "",
       meta_title || "",
@@ -760,7 +800,7 @@ export const createBlog = async (req, res) => {
     const [result] = await connection.query(blogQuery, blogValues);
     const blogId = result.insertId;
 
-    // ✅ Insert uploaded images into blog_images table
+    // Save additional images
     if (images.length > 0) {
       for (let i = 0; i < images.length; i++) {
         const { url, public_id } = images[i];
@@ -792,23 +832,16 @@ export const createBlog = async (req, res) => {
     });
   } catch (err) {
     await connection.rollback();
-
-    // ✅ Handle duplicate slug
     if (err.code === "ER_DUP_ENTRY") {
-      return res.status(400).json({
-        error: "Slug already exists. Please choose a different slug.",
-      });
+      return res.status(400).json({ error: "Slug already exists." });
     }
-
-    console.error("Unhandled Server Error:", err);
-    return res.status(500).json({
-      error: "Something went wrong on the server",
-      details: err.message,
-    });
+    console.error("Server error:", err);
+    return res.status(500).json({ error: "Server error", details: err.message });
   } finally {
     connection.release();
   }
 };
+
 
 
 
