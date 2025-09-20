@@ -2,7 +2,7 @@ import express from "express";
 import {
   addComment,
   createBlog,
-  deleteAllBlogImages,
+  deleteUploadedImages,
   deleteFeaturedImage,
   getAllBlogs,
   getBlogById,
@@ -47,7 +47,7 @@ router.post("/api/images/upload-multiple", upload.array("files", 10), uploadMult
 
 
 router.delete("/api/blogs/:blogId/featured-image", deleteFeaturedImage);
-router.delete("/api/blogs/:blogId/images", deleteAllBlogImages);
+router.delete("/api/blogs/:blogId/images", deleteUploadedImages);
 
 
 export default router;
