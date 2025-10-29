@@ -18,7 +18,7 @@ app.use(express.json());
 app.use(cors());
 
 // ✅ Swagger Docs
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // ✅ Routes
 app.use('/api', userRoutes);
@@ -28,5 +28,5 @@ app.use('/api', subscriptionRoutes);
 // ✅ Start Server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`📚 Swagger Docs: http://localhost:${PORT}/api-docs`);
+  console.log(`📚 Swagger Docs: http://localhost:${PORT}/docs`);
 });
