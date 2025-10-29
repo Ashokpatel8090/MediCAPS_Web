@@ -65,4 +65,6 @@ router.get("/admin/nutritionist/information", verifyToken, getUsersWithAddresses
 
 
 
+
+
 export default router;

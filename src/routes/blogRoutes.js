@@ -59,14 +59,7 @@ router.delete('/api/blog/:blog_id', deleteBlog);
 
 
 
-// router.post("/api/images/upload", upload.single("file"), uploadImage);
-// router.post("/api/images/upload-multiple", upload.array("files", 10), uploadMultipleImages);
 
-
-
-// router.delete("/api/blogs/:blogId/featured-image", deleteFeaturedImage);
-// router.delete("/api/blogs/:blogId/featured-image", deleteMultipleBlogImages);
-// router.delete("/api/blogs/:blogId/images", deleteUploadedImages);
 
 
 export default router;

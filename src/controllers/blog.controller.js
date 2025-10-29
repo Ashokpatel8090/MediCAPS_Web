@@ -311,14 +311,14 @@ const streamUpload = (buffer) => {
 };
 
 
-
 /**
  * @swagger
- * /api/images/upload:
+ * /images/upload:
  *   post:
- *     summary: Upload a featured image for a blog
+ *     summary: Upload a single image to Cloudinary
+ *     description: This endpoint uploads a single image file to Cloudinary and returns its public URL and public ID. The image is sent as a multipart/form-data request.
  *     tags:
- *       - Blogs
+ *       - Blog Images
  *     requestBody:
  *       required: true
  *       content:
@@ -326,17 +326,13 @@ const streamUpload = (buffer) => {
  *           schema:
  *             type: object
  *             properties:
- *               blog_id:
- *                 type: integer
- *                 description: ID of the blog to attach the image
- *                 example: 12
- *               image:
+ *               file:
  *                 type: string
  *                 format: binary
- *                 description: Image file to upload as the blog's featured image
+ *                 description: The image file to upload
  *     responses:
  *       200:
- *         description: Blog image uploaded and saved successfully
+ *         description: Image uploaded successfully
  *         content:
  *           application/json:
  *             schema:
@@ -344,19 +340,16 @@ const streamUpload = (buffer) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "✅ Blog image uploaded & saved successfully"
- *                 blog_id:
- *                   type: integer
- *                   example: 12
+ *                   example: "✅ Image uploaded successfully"
  *                 url:
  *                   type: string
  *                   format: uri
- *                   example: "https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg"
+ *                   example: "https://res.cloudinary.com/demo/image/upload/v1699999999/sample.jpg"
  *                 public_id:
  *                   type: string
- *                   example: "sample"
+ *                   example: "sample_public_id"
  *       400:
- *         description: Bad request, missing blog_id or image
+ *         description: Bad request — missing image file in request
  *         content:
  *           application/json:
  *             schema:
@@ -377,9 +370,8 @@ const streamUpload = (buffer) => {
  *                   example: "Image upload failed"
  *                 details:
  *                   type: string
- *                   example: "Detailed error message"
+ *                   example: "Cloudinary upload error: invalid signature"
  */
-
 
 export const uploadImage = async (req, res) => {
   try {
@@ -404,14 +396,14 @@ export const uploadImage = async (req, res) => {
   }
 };
 
-
 /**
  * @swagger
- * /api/images/upload-multiple:
+ * /images/upload-multiple:
  *   post:
- *     summary: Upload multiple images for a specific blog
+ *     summary: Upload multiple images to Cloudinary
+ *     description: This endpoint uploads multiple image files (up to 10) to Cloudinary and returns their URLs and public IDs.
  *     tags:
- *       - Blogs
+ *       - Blog Images
  *     requestBody:
  *       required: true
  *       content:
@@ -419,19 +411,15 @@ export const uploadImage = async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               blog_id:
- *                 type: integer
- *                 description: ID of the blog to attach the images
- *                 example: 12
- *               images:
+ *               files:
  *                 type: array
  *                 items:
  *                   type: string
  *                   format: binary
- *                 description: Array of image files to upload
+ *                 description: List of image files to upload (max 10)
  *     responses:
  *       200:
- *         description: Images uploaded and stored successfully
+ *         description: Images uploaded successfully
  *         content:
  *           application/json:
  *             schema:
@@ -439,10 +427,7 @@ export const uploadImage = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "✅ Images uploaded & stored successfully"
- *                 blog_id:
- *                   type: integer
- *                   example: 12
+ *                   example: "✅ Images uploaded successfully"
  *                 images:
  *                   type: array
  *                   items:
@@ -451,12 +436,12 @@ export const uploadImage = async (req, res) => {
  *                       url:
  *                         type: string
  *                         format: uri
- *                         example: "https://res.cloudinary.com/demo/image/upload/v1234567890/sample1.jpg"
+ *                         example: "https://res.cloudinary.com/demo/image/upload/v1699999999/sample1.jpg"
  *                       public_id:
  *                         type: string
- *                         example: "sample1"
+ *                         example: "sample_public_id_1"
  *       400:
- *         description: Bad request, missing blog_id or files
+ *         description: Bad request — no images provided
  *         content:
  *           application/json:
  *             schema:
@@ -474,14 +459,12 @@ export const uploadImage = async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
- *                   example: "Multiple image upload failed"
+ *                   example: "Images upload failed"
  *                 details:
  *                   type: string
- *                   example: "Detailed error message"
+ *                   example: "Cloudinary upload error: invalid file format"
  */
 
-
-// Upload multiple images
 export const uploadMultipleImages = async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
@@ -508,14 +491,14 @@ export const uploadMultipleImages = async (req, res) => {
 };
 
 
-
 /**
  * @swagger
- * /api/images/delete-multiple:
+ * /images/delete-multiple:
  *   delete:
  *     summary: Delete all images associated with a specific blog
+ *     description: This endpoint deletes all images for a given `blog_id` — first from Cloudinary, then from the database (`blog_images` table).
  *     tags:
- *       - Blogs
+ *       - Blog Images
  *     requestBody:
  *       required: true
  *       content:
@@ -525,11 +508,11 @@ export const uploadMultipleImages = async (req, res) => {
  *             properties:
  *               blog_id:
  *                 type: integer
- *                 description: ID of the blog whose images should be deleted
- *                 example: 12
+ *                 description: The ID of the blog whose images should be deleted
+ *                 example: 42
  *     responses:
  *       200:
- *         description: All images deleted successfully
+ *         description: All blog images deleted successfully
  *         content:
  *           application/json:
  *             schema:
@@ -540,12 +523,12 @@ export const uploadMultipleImages = async (req, res) => {
  *                   example: "✅ All images deleted successfully"
  *                 blog_id:
  *                   type: integer
- *                   example: 12
+ *                   example: 42
  *                 deleted_count:
  *                   type: integer
  *                   example: 5
  *       400:
- *         description: Bad request, missing blog_id
+ *         description: Missing required blog_id in request body
  *         content:
  *           application/json:
  *             schema:
@@ -555,7 +538,7 @@ export const uploadMultipleImages = async (req, res) => {
  *                   type: string
  *                   example: "blog_id is required"
  *       404:
- *         description: No images found for the specified blog
+ *         description: No images found for the provided blog ID
  *         content:
  *           application/json:
  *             schema:
@@ -565,7 +548,7 @@ export const uploadMultipleImages = async (req, res) => {
  *                   type: string
  *                   example: "No images found for this blog"
  *       500:
- *         description: Server error while deleting images
+ *         description: Server error during deletion
  *         content:
  *           application/json:
  *             schema:
@@ -576,9 +559,8 @@ export const uploadMultipleImages = async (req, res) => {
  *                   example: "Failed to delete images"
  *                 details:
  *                   type: string
- *                   example: "Detailed error message"
+ *                   example: "Database connection lost"
  */
-
 
 export const deleteMultipleImages = async (req, res) => {
   const connection = await db.getConnection();
@@ -628,13 +610,11 @@ export const deleteMultipleImages = async (req, res) => {
 };
 
 
-
-
 /**
  * @swagger
- * /api/images/upload/{blog_id}:
+ * /images/{blog_id}/featured-image:
  *   delete:
- *     summary: Delete the featured image for a specific blog
+ *     summary: Delete the featured image of a blog
  *     tags:
  *       - Blogs
  *     parameters:
@@ -643,8 +623,7 @@ export const deleteMultipleImages = async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the blog whose featured image should be deleted
- *         example: 12
+ *         description: ID of the blog whose featured image will be deleted
  *     responses:
  *       200:
  *         description: Featured image deleted successfully
@@ -660,7 +639,7 @@ export const deleteMultipleImages = async (req, res) => {
  *                   type: integer
  *                   example: 12
  *       400:
- *         description: Bad request, missing blog_id
+ *         description: blog_id missing in params
  *         content:
  *           application/json:
  *             schema:
@@ -668,9 +647,9 @@ export const deleteMultipleImages = async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
- *                   example: "blog_id is required"
+ *                   example: "⚠️ blog_id is required"
  *       404:
- *         description: No featured image found for the blog
+ *         description: Blog or featured image not found
  *         content:
  *           application/json:
  *             schema:
@@ -678,21 +657,22 @@ export const deleteMultipleImages = async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
- *                   example: "No featured image found for this blog"
+ *                   example: "⚠️ No featured image found for this blog"
  *       500:
- *         description: Server error while deleting the featured image
+ *         description: Failed to delete featured image
  *         content:
- *           application/json:
+ *           application/json
  *             schema:
  *               type: object
  *               properties:
  *                 error:
  *                   type: string
- *                   example: "Failed to delete single blog image"
+ *                   example: "❌ Failed to delete featured image"
  *                 details:
  *                   type: string
- *                   example: "Detailed error message"
+ *                   example: "Cloudinary deletion error"
  */
+
 
 export const deleteFeaturedImage = async (req, res) => {
   const connection = await db.getConnection();
@@ -749,6 +729,108 @@ export const deleteFeaturedImage = async (req, res) => {
 };
 
 
+
+
+/**
+ * @swagger
+ * /blogs/create:
+ *   post:
+ *     summary: Create a new blog
+ *     tags:
+ *       - Blogs
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: "How to Learn Node.js"
+ *               slug:
+ *                 type: string
+ *                 example: "learn-nodejs"
+ *               content:
+ *                 type: string
+ *                 example: "<p>Node.js guide...</p>"
+ *               excerpt:
+ *                 type: string
+ *                 example: "Short blog summary..."
+ *               published_at:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2025-10-28 14:30:00"
+ *               featured_image_url:
+ *                 type: string
+ *                 example: "https://res.cloudinary.com/sample.jpg"
+ *               featured_image_public_id:
+ *                 type: string
+ *                 example: "blogs/sample-img"
+ *               meta_title:
+ *                 type: string
+ *                 example: "Learn Node.js SEO Title"
+ *               meta_description:
+ *                 type: string
+ *                 example: "SEO description for the blog"
+ *               images:
+ *                 type: string
+ *                 description: JSON array of images with url and public_id
+ *                 example: '[{"url": "https://image1.jpg", "public_id": "img1"}, {"url": "https://image2.jpg", "public_id": "img2"}]'
+ *             required:
+ *               - title
+ *               - slug
+ *               - content
+ *     responses:
+ *       201:
+ *         description: Blog created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "✅ Blog created successfully"
+ *                 blog:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 12
+ *                     title:
+ *                       type: string
+ *                     slug:
+ *                       type: string
+ *                     content:
+ *                       type: string
+ *                     excerpt:
+ *                       type: string
+ *                     published_at:
+ *                       type: string
+ *                       nullable: true
+ *                     featured_image_url:
+ *                       type: string
+ *                     featured_image_public_id:
+ *                       type: string
+ *                     meta_title:
+ *                       type: string
+ *                     meta_description:
+ *                       type: string
+ *                     images:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           url:
+ *                             type: string
+ *                           public_id:
+ *                             type: string
+ *       400:
+ *         description: Slug duplicate or required fields missing
+ *       500:
+ *         description: Server error while creating blog
+ */
 
 
 
@@ -849,6 +931,98 @@ export const createBlog = async (req, res) => {
   }
 };
 
+
+/**
+ * @swagger
+ * /blogs/update/{id}:
+ *   patch:
+ *     summary: Update an existing blog
+ *     tags:
+ *       - Blogs
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the blog to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: "Updated Node.js Guide"
+ *               slug:
+ *                 type: string
+ *                 example: "updated-nodejs-guide"
+ *               content:
+ *                 type: string
+ *                 example: "<p>Updated HTML content...</p>"
+ *               excerpt:
+ *                 type: string
+ *                 example: "Updated short blog summary..."
+ *               published_at:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2025-10-28 14:30:00"
+ *               meta_title:
+ *                 type: string
+ *                 example: "Updated SEO Meta Title"
+ *               meta_description:
+ *                 type: string
+ *                 example: "Updated SEO meta description"
+ *               featured_image_url:
+ *                 type: string
+ *                 example: "https://res.cloudinary.com/new-featured.jpg"
+ *               featured_image_public_id:
+ *                 type: string
+ *                 example: "blogs/new_featured_img"
+ *               images:
+ *                 type: string
+ *                 description: JSON array of new images. Replaces all old images.
+ *                 example: |
+ *                   [
+ *                     {"url": "https://new-image1.jpg", "public_id": "new1"},
+ *                     {"url": "https://new-image2.jpg", "public_id": "new2"}
+ *                   ]
+ *     responses:
+ *       200:
+ *         description: Blog updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "✅ Blog updated successfully"
+ *                 updatedFields:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["title", "slug", "content"]
+ *                 deletedImage:
+ *                   type: string
+ *                   nullable: true
+ *                   example: "old_public_id"
+ *                 newImages:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       url:
+ *                         type: string
+ *                       public_id:
+ *                         type: string
+ *       404:
+ *         description: Blog not found
+ *       500:
+ *         description: Server error while updating blog
+ */
 
 
 export const updateBlog = async (req, res) => {
@@ -956,26 +1130,23 @@ export const updateBlog = async (req, res) => {
 };
 
 
-
 /**
  * @swagger
- * /blogs/delete/{id}:
+ * /blog/{blog_id}:
  *   delete:
- *     summary: Delete a blog and its related data by ID
+ *     summary: Delete a blog and all associated data
  *     tags:
  *       - Blogs
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: blog_id
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the blog to delete along with its comments, likes, and shares
+ *         description: ID of the blog to delete
  *     responses:
  *       200:
- *         description: Blog and related data deleted successfully
+ *         description: Blog deleted successfully along with its related records and Cloudinary images
  *         content:
  *           application/json:
  *             schema:
@@ -983,7 +1154,20 @@ export const updateBlog = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Blog and related data deleted successfully
+ *                   example: "✅ Blog and all associated data deleted successfully."
+ *                 blogId:
+ *                   type: integer
+ *                   example: 15
+ *       400:
+ *         description: Blog ID missing in params
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Blog ID is required."
  *       404:
  *         description: Blog not found
  *         content:
@@ -993,9 +1177,9 @@ export const updateBlog = async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
- *                   example: Blog not found
+ *                   example: "Blog not found."
  *       500:
- *         description: Internal server error
+ *         description: Server error while deleting blog and related data
  *         content:
  *           application/json:
  *             schema:
@@ -1003,9 +1187,11 @@ export const updateBlog = async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
- *                   example: Internal server error
+ *                   example: "Server error. Could not delete the blog."
+ *                 details:
+ *                   type: string
+ *                   example: "Cloudinary deletion error details..."
  */
-
 
 
 export const deleteBlog = async (req, res) => {
@@ -1078,15 +1264,11 @@ export const deleteBlog = async (req, res) => {
 
 
 
-
-
-
-
 /**
  * @swagger
  * /blogs/{blogId}/like:
  *   post:
- *     summary: Like or unlike a specific blog post (toggle)
+ *     summary: Toggle like on a blog by the authenticated user
  *     tags:
  *       - Blogs
  *     security:
@@ -1097,10 +1279,10 @@ export const deleteBlog = async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the blog to like or unlike
+ *         description: The ID of the blog to be liked or unliked
  *     responses:
  *       200:
- *         description: Blog liked or unliked successfully
+ *         description: Like status toggled successfully
  *         content:
  *           application/json:
  *             schema:
@@ -1108,7 +1290,7 @@ export const deleteBlog = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Blog liked successfully
+ *                   example: "Blog liked successfully"
  *                 likes_count:
  *                   type: integer
  *                   example: 5
@@ -1116,7 +1298,7 @@ export const deleteBlog = async (req, res) => {
  *                   type: boolean
  *                   example: true
  *       400:
- *         description: Invalid blog ID
+ *         description: Invalid blog ID provided
  *         content:
  *           application/json:
  *             schema:
@@ -1124,7 +1306,7 @@ export const deleteBlog = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Invalid blog ID
+ *                   example: "Invalid blog ID"
  *       404:
  *         description: Blog not found
  *         content:
@@ -1134,9 +1316,9 @@ export const deleteBlog = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Blog not found
+ *                   example: "Blog not found"
  *       500:
- *         description: Server error
+ *         description: Server error occurred
  *         content:
  *           application/json:
  *             schema:
@@ -1144,11 +1326,12 @@ export const deleteBlog = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Server error
+ *                   example: "Server error"
  *                 details:
  *                   type: string
- *                   example: Detailed error message
+ *                   example: "Error details message"
  */
+
 export const likeBlog = async (req, res) => {
   try {
     const userId = req.user.sub;
@@ -1207,12 +1390,14 @@ export const likeBlog = async (req, res) => {
 
 
 
-// Fetch total likes for a blog
 /**
  * @swagger
- * /blogs/{blogId}/likes:
+ * /blogs/:blogId/likes:
  *   get:
- *     summary: Get total likes and user like status for a specific blog
+ *     summary: Get total likes and user like status for a blog
+ *     description: >
+ *       Retrieves the total number of likes for a specific blog post.  
+ *       If the user is authenticated, it also indicates whether the user has liked the blog.
  *     tags:
  *       - Blogs
  *     security:
@@ -1223,10 +1408,11 @@ export const likeBlog = async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the blog to get like information for
+ *         description: The ID of the blog post to retrieve like information for
+ *         example: 8
  *     responses:
  *       200:
- *         description: Likes count and user like status retrieved successfully
+ *         description: Successfully retrieved like information
  *         content:
  *           application/json:
  *             schema:
@@ -1234,10 +1420,10 @@ export const likeBlog = async (req, res) => {
  *               properties:
  *                 blogId:
  *                   type: integer
- *                   example: 87
+ *                   example: 8
  *                 likes_count:
  *                   type: integer
- *                   example: 10
+ *                   example: 45
  *                 user_liked:
  *                   type: boolean
  *                   example: true
@@ -1250,7 +1436,7 @@ export const likeBlog = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Invalid blog ID
+ *                   example: "Invalid blog ID"
  *       404:
  *         description: Blog not found
  *         content:
@@ -1260,9 +1446,9 @@ export const likeBlog = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Blog not found
+ *                   example: "Blog not found"
  *       500:
- *         description: Server error
+ *         description: Server error while fetching like data
  *         content:
  *           application/json:
  *             schema:
@@ -1270,11 +1456,13 @@ export const likeBlog = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Server error
+ *                   example: "Server error"
  *                 details:
  *                   type: string
- *                   example: Detailed error message
+ *                   example: "Detailed error message"
  */
+
+
 export const getBlogLikes = async (req, res) => {
   try {
     const { blogId } = req.params;
@@ -1323,12 +1511,14 @@ export const getBlogLikes = async (req, res) => {
 
 
 
-// Add a comment to a blog
 /**
  * @swagger
- * /blogs/{blogId}/comments:
+ * /blogs/:blogId/comments:
  *   post:
- *     summary: Add a comment to a specific blog post
+ *     summary: Add a new comment to a blog
+ *     description: >
+ *       Allows an authenticated user to add a comment to a specific blog post.
+ *       The comment text must not be empty.
  *     tags:
  *       - Blogs
  *     security:
@@ -1339,20 +1529,18 @@ export const getBlogLikes = async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the blog to add a comment to
+ *         description: The ID of the blog post to comment on
+ *         example: 12
  *     requestBody:
- *       description: Comment content
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - comment
  *             properties:
  *               comment:
  *                 type: string
- *                 example: This is a very insightful post!
+ *                 example: "This is a really insightful post!"
  *     responses:
  *       201:
  *         description: Comment added successfully
@@ -1363,16 +1551,16 @@ export const getBlogLikes = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Comment added successfully
+ *                   example: "Comment added successfully"
  *                 comment_id:
  *                   type: integer
- *                   example: 42
+ *                   example: 45
  *                 created_at:
  *                   type: string
  *                   format: date-time
- *                   example: "2025-08-11 14:30:00"
+ *                   example: "2025-10-28 17:42:10"
  *       400:
- *         description: Comment cannot be empty
+ *         description: Invalid or empty comment text
  *         content:
  *           application/json:
  *             schema:
@@ -1380,7 +1568,7 @@ export const getBlogLikes = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Comment cannot be empty
+ *                   example: "Comment cannot be empty"
  *       404:
  *         description: Blog not found
  *         content:
@@ -1390,9 +1578,9 @@ export const getBlogLikes = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Blog not found
+ *                   example: "Blog not found"
  *       500:
- *         description: Server error
+ *         description: Server error while adding comment
  *         content:
  *           application/json:
  *             schema:
@@ -1400,11 +1588,13 @@ export const getBlogLikes = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Server error
+ *                   example: "Server error"
  *                 details:
  *                   type: string
- *                   example: Detailed error message
+ *                   example: "Detailed error message"
  */
+
+
 export const addComment = async (req, res) => {
   try {
     const userId = req.user.sub;
@@ -1445,6 +1635,8 @@ export const addComment = async (req, res) => {
 
 
 // Helper function to get IST time formatted for MySQL
+
+
 function getCurrentISTDateTime() {
   const date = new Date();
 
@@ -1467,7 +1659,7 @@ function getCurrentISTDateTime() {
 
 /**
  * @swagger
- * /blogs/{blogId}/comments:
+ * /blogs/:blogId/comments:
  *   get:
  *     summary: Get comments for a specific blog post
  *     tags:
@@ -1535,6 +1727,8 @@ function getCurrentISTDateTime() {
  *                   type: string
  *                   example: Detailed error message
  */
+
+
 export const getComments = async (req, res) => {
   try {
     const { blogId } = req.params;
@@ -1570,7 +1764,7 @@ export const getComments = async (req, res) => {
 
 /**
  * @swagger
- * /blogs/{blogId}/share:
+ * /blog/:slug/share:
  *   post:
  *     summary: Share a blog post on a specific platform
  *     tags:
@@ -1648,6 +1842,7 @@ export const getComments = async (req, res) => {
  *                   type: string
  *                   example: Detailed error message
  */
+
 export const shareBlog = async (req, res) => {
   console.log('req.user:', req.user);
   try {
@@ -1697,7 +1892,7 @@ export const shareBlog = async (req, res) => {
 
 /**
  * @swagger
- * /blogs/{blogId}/share-count:
+ * /blog/:slug/share-count:
  *   get:
  *     summary: Get total share count for a blog
  *     tags:
@@ -1781,7 +1976,7 @@ export const getBlogShareCount = async (req, res) => {
 
 /**
  * @swagger
- * /blogs/{id}:
+ * /blogs/:id:
  *   get:
  *     summary: Get a blog by its ID
  *     tags:

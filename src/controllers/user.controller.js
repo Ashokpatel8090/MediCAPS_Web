@@ -3,6 +3,8 @@
 import { deactivateUser, activateUser, isUserActive } from '../models/User.js';
 import db from '../config/db.js';
 
+
+
 /**
  * @swagger
  * /admin/users/{userId}/deactivate:
@@ -45,6 +47,9 @@ import db from '../config/db.js';
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
+
+
+
 export const handleDeactivateUser = async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -117,6 +122,7 @@ export const handleDeactivateUser = async (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
+
 export const handleActivateUser = async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -152,7 +158,7 @@ export const handleActivateUser = async (req, res) => {
 
 /**
  * @swagger
- * /api/admin/doctors/verified:
+ * /admin/doctors/verified:
  *   get:
  *     summary: Get all verified doctors
  *     description: Fetches a list of all doctors whose `is_verified` field is set to `'1'` and not null.
@@ -246,7 +252,7 @@ export const getVerifiedDoctors = async (req, res) => {
 
 /**
  * @swagger
- * /api/admin/doctors/verified-details:
+ * /admin/doctors/verified-details:
  *   get:
  *     summary: Get all verified doctors with full profile and related details
  *     description: Returns a list of verified doctors including personal info, address, qualifications, schedules, slots, appointments, and documents.
@@ -562,6 +568,149 @@ export const getVerifiedDoctorsDetails = async (req, res) => {
 };
 
 
+
+
+/**
+ * @swagger
+ * /admin/doctors/verified-details/{id}:
+ *   get:
+ *     summary: Get full verified doctor details by User ID
+ *     description: >
+ *       Retrieves complete profile information of a verified doctor using the **user_id**.  
+ *       Includes personal info, addresses, qualifications, schedules, availability slots,
+ *       appointments, and submitted verification documents.
+ *     tags: [Admin]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: User ID of the verified doctor
+ *     responses:
+ *       200:
+ *         description: Doctor details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 doctor_id:
+ *                   type: integer
+ *                   example: 12
+ *                 user_id:
+ *                   type: integer
+ *                   example: 45
+ *                 name:
+ *                   type: string
+ *                   example: Dr. Amit Sharma
+ *                 email:
+ *                   type: string
+ *                   example: doctor@example.com
+ *                 phone:
+ *                   type: string
+ *                   example: "9876543210"
+ *                 bio:
+ *                   type: string
+ *                   example: Experienced cardiologist with 10+ years in clinical practice.
+ *                 experience_years:
+ *                   type: integer
+ *                   example: 10
+ *                 languages_spoken:
+ *                   type: string
+ *                   example: "English, Hindi"
+ *                 average_rating:
+ *                   type: number
+ *                   format: float
+ *                   example: 4.8
+ *                 total_reviews:
+ *                   type: integer
+ *                   example: 120
+ *                 is_verified:
+ *                   type: boolean
+ *                   example: true
+ *                 profile_url:
+ *                   type: string
+ *                   example: "https://example.com/profile.jpg"
+ *                 addresses:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 5
+ *                       street:
+ *                         type: string
+ *                         example: "MG Road"
+ *                       landmark:
+ *                         type: string
+ *                         example: "Near Central Mall"
+ *                       postal_code:
+ *                         type: string
+ *                         example: "452001"
+ *                       address_type:
+ *                         type: string
+ *                         example: "Home"
+ *                       city:
+ *                         type: string
+ *                         example: "Indore"
+ *                       state:
+ *                         type: string
+ *                         example: "Madhya Pradesh"
+ *                       country:
+ *                         type: string
+ *                         example: "India"
+ *                 qualifications:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example:
+ *                     - "MBBS from AIIMS (2015)"
+ *                     - "MD Cardiology from PGI (2019)"
+ *                 schedules:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                   description: Weekly schedule of the doctor
+ *                 availability_slots:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                   description: Available consultation slots
+ *                 appointments:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                   description: Appointment details with patients
+ *                 documents:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                   description: Verification documents submitted by doctor
+ *       404:
+ *         description: Doctor not found or not verified
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Doctor not found
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Server error
+ */
+
+
 export const getVerifiedDoctorDetailsById = async (req, res) => {
   try {
     const { id } = req.params; // this is user_id
@@ -697,6 +846,100 @@ export const getVerifiedDoctorDetailsById = async (req, res) => {
   }
 };
 
+
+
+
+/**
+ * @swagger
+ * /admin/nutritionist/information:
+ *   get:
+ *     summary: Get all nutritionists with their addresses
+ *     description: >
+ *       Retrieves a list of all users with **role_id = 6 (Nutritionists)** along with their 
+ *       associated address information.  
+ *       Returns user details even if they do not have an address (LEFT JOIN).
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Nutritionist users fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       user_id:
+ *                         type: integer
+ *                         example: 42
+ *                       full_name:
+ *                         type: string
+ *                         example: "Rohit Verma"
+ *                       email:
+ *                         type: string
+ *                         example: "rohit@example.com"
+ *                       phone:
+ *                         type: string
+ *                         example: "9876543210"
+ *                       role_id:
+ *                         type: integer
+ *                         example: 6
+ *                       user_type:
+ *                         type: string
+ *                         example: "nutritionist"
+ *                       is_active:
+ *                         type: boolean
+ *                         example: true
+ *                       address_id:
+ *                         type: integer
+ *                         example: 10
+ *                       street:
+ *                         type: string
+ *                         example: "MG Road"
+ *                       landmark:
+ *                         type: string
+ *                         example: "Near Central Mall"
+ *                       city_id:
+ *                         type: integer
+ *                         example: 12
+ *                       state_id:
+ *                         type: integer
+ *                         example: 20
+ *                       country_id:
+ *                         type: integer
+ *                         example: 1
+ *                       postal_code:
+ *                         type: string
+ *                         example: "452001"
+ *                       address_type:
+ *                         type: string
+ *                         example: "Home"
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2024-01-20T10:25:30.000Z"
+ *       500:
+ *         description: Server error while fetching nutritionist information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Server Error
+ */
 
 
 // Get users with addresses, only if role_id = 6
